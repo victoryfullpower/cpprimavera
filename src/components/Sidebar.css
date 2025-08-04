@@ -1,0 +1,128 @@
+/* Estilos base */
+.sidebar {
+  background: #1a202c;
+  color: white;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: 250px;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #2d3748;
+}
+
+.sidebar-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+}
+
+/* Menú acordeón */
+.menu-group {
+  margin-bottom: 0.5rem;
+}
+
+.menu-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  background: #2d3748;
+  color: white;
+  transition: background 0.3s ease;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.menu-label:hover {
+  background: #4a5568;
+}
+
+.menu-label-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.menu-icon {
+  font-size: 1rem;
+}
+
+.menu-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-arrow {
+  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  font-size: 0.9rem;
+}
+
+.menu-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.submenu {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.4s cubic-bezier(0.65, 0, 0.35, 1), 
+              opacity 0.3s ease;
+  will-change: max-height, opacity;
+}
+
+.submenu.expanded {
+  display: block;
+}
+
+.submenu-item {
+  display: block;
+  padding: 0.5rem 1rem 0.5rem 2rem;
+  color: #cbd5e0;
+  text-decoration: none;
+  transition: background 0.25s ease, transform 0.2s ease;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.submenu-item:hover {
+  background: #2d3748;
+  transform: translateX(3px);
+}
+
+.submenu-item.active {
+  background: #4a5568;
+  color: white;
+}
+
+/* Scrollbar personalizada */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #1a202c;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}

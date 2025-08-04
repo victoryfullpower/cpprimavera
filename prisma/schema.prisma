@@ -1,0 +1,239 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  email String @unique
+  username String @unique
+  password String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  role String
+  estado Boolean
+  createdDebts concepto_deuda[] @relation("CreatedDebts")
+  updatedDebts concepto_deuda[] @relation("UpdatedDebts")
+  createdRegDebts reg_deuda[] @relation("CreatedRegDebts")
+  updatedRegDebts reg_deuda[] @relation("UpdatedRegDebts")
+  createdDocNum documento_numeracion[] @relation("CreatedDocNum")
+  updatedDocNum documento_numeracion[] @relation("UpdatedDocNum")
+  createdMetodoPago metodo_pago[] @relation("CreatedMetodoPago")
+  updatedMetodoPago metodo_pago[] @relation("UpdatedMetodoPago")
+  createdEntidadRecau entidad_recaudadora[] @relation("CreatedEntidadRecau")
+  updatedEntidadRecau entidad_recaudadora[] @relation("UpdatedEntidadRecau")
+  createdReciboIngreso recibo_ingreso[] @relation("CreatedReciboIngreso")
+  updatedReciboIngreso recibo_ingreso[] @relation("UpdatedReciboIngreso")
+  createdEmpresa empresa[] @relation("CreatedEmpresa")
+  updatedEmpresa empresa[] @relation("UpdatedEmpresa")
+  createdConceptoE concepto_egreso[] @relation("CreatedConceptoE")
+  updatedConceptoE concepto_egreso[] @relation("UpdatedConceptoE")
+  createdReciboEgreso recibo_egreso[] @relation("CreatedReciboEgreso")
+  updatedReciboEgreso recibo_egreso[] @relation("UpdatedReciboEgreso")
+  
+  
+}
+
+model cliente{
+  idcliente Int @id @default(autoincrement())
+  nombre String 
+  stands stand[]
+}
+
+model stand{
+  idstand Int @id @default(autoincrement())
+  descripcion String
+  nivel Int
+  idcliente Int?
+  client cliente? @relation(fields: [idcliente],references: [idcliente])
+  detallesDeuda reg_deuda_detalle[]  // Relación inversa con reg_deuda_detalle
+  recibosIngreso recibo_ingreso[] // Relación inversa
+}
+
+model concepto_deuda{
+  idconcepto Int @id @default(autoincrement())
+  descripcion String
+  estado Boolean
+  deuda Boolean
+  createdby Int
+  updatedby Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy User @relation("CreatedDebts", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedDebts", fields: [updatedby], references: [id])
+  deudas reg_deuda[]  // Relación inversa con reg_deuda
+  detallesReciboIngreso recibo_ingreso_detalle[] // Relación inversa
+}
+
+model reg_deuda {
+  idregdeuda Int @id @default(autoincrement())
+  total Decimal @db.Decimal(10, 4)
+  idconcepto_deuda Int
+  concepto concepto_deuda @relation(fields: [idconcepto_deuda], references: [idconcepto])
+  fechadeuda DateTime
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedRegDebts", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedRegDebts", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+  detalles reg_deuda_detalle[] // Relación uno a muchos con el detalle
+}
+
+model reg_deuda_detalle {
+  idregdeuda_detalle Int @id @default(autoincrement())
+  idregdeuda Int
+  cabecera reg_deuda @relation(fields: [idregdeuda], references: [idregdeuda])
+  idstand Int
+  stand stand @relation(fields: [idstand], references: [idstand])
+  mora Decimal? @db.Decimal(10, 4)
+  monto Decimal @db.Decimal(10, 4)
+  detallesReciboIngreso recibo_ingreso_detalle[] // Relación inversa
+}
+
+model documento_numeracion{
+  iddocumento_numeracion Int @id @default(autoincrement())
+  descripcion String
+  numeroactual Int
+  apartir_de_numeracion Int
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedDocNum", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedDocNum", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+}
+
+model metodo_pago{
+  idmetodo_pago Int @id @default(autoincrement())
+  descripcion String
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedMetodoPago", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedMetodoPago", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+  recibosIngreso recibo_ingreso[] // Relación inversa
+}
+
+model entidad_recaudadora{
+  identidad_recaudadora Int @id @default(autoincrement())
+  descripcion String
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedEntidadRecau", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedEntidadRecau", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+  recibos recibo_ingreso[] // Relación inversa añadida
+}
+
+model recibo_ingreso {
+  idrecibo_ingreso Int @id @default(autoincrement())
+  numero_operacion String?
+  idmetodo_pago Int
+  metodoPago metodo_pago @relation(fields: [idmetodo_pago], references: [idmetodo_pago])
+  total Decimal @db.Decimal(10, 4)
+  idstand Int?
+  stand stand? @relation(fields: [idstand], references: [idstand])
+  numerorecibo Int
+  fecharecibo DateTime
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedReciboIngreso", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedReciboIngreso", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+  detalles recibo_ingreso_detalle[] // Relación inversa añadida
+  identidad_recaudadora Int?
+  entidadRecaudadora entidad_recaudadora? @relation(fields: [identidad_recaudadora], references: [identidad_recaudadora]) // Relación explícita
+}
+
+model recibo_ingreso_detalle {
+  idrecibo_ingreso_detalle Int @id @default(autoincrement())
+  cabecera_ri Int
+  cabecera recibo_ingreso @relation(fields: [cabecera_ri], references: [idrecibo_ingreso])
+  idconcepto Int
+  concepto concepto_deuda @relation(fields: [idconcepto], references: [idconcepto])
+  fechadeuda DateTime?
+  idregdeuda_detalle Int?
+  detalleDeuda reg_deuda_detalle? @relation(fields: [idregdeuda_detalle], references: [idregdeuda_detalle])
+  monto Decimal @db.Decimal(10, 4)
+  descripcion String?
+  // Índices para mejorar el rendimiento
+  @@index([cabecera_ri])
+  @@index([idconcepto])
+  @@index([idregdeuda_detalle])
+}
+
+model empresa{
+  idempresa Int @id @default(autoincrement())
+  nombre_empresa String
+  ruc String
+  nombre_comercial String
+  direccion String
+  telefono String
+  celular String
+  correo String
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedEmpresa", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedEmpresa", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+}
+
+model concepto_egreso{
+  idconcepto_egreso Int @id @default(autoincrement())
+  descripcion String
+  estado Boolean
+  createdby Int
+  updatedby Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy User @relation("CreatedConceptoE", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedConceptoE", fields: [updatedby], references: [id])
+  detallesReciboEgreso recibo_egreso_detalle[] // Relación inversa
+
+}
+
+model recibo_egreso {
+  idrecibo_egreso Int @id @default(autoincrement())
+  total Decimal @db.Decimal(10, 4)
+  numerorecibo_egreso Int
+  fecharecibo_egreso DateTime
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedReciboEgreso", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedReciboEgreso", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+  detalles recibo_egreso_detalle[] // Relación inversa añadida
+}
+
+model recibo_egreso_detalle {
+  idrecibo_egreso_detalle Int @id @default(autoincrement())
+  cabecera_re Int
+  cabecera recibo_egreso @relation(fields: [cabecera_re], references: [idrecibo_egreso])
+  idconcepto_egreso Int
+  concepto concepto_egreso @relation(fields: [idconcepto_egreso], references: [idconcepto_egreso])
+  monto Decimal @db.Decimal(10, 4)
+  descripcion String?
+  // Índices para mejorar el rendimiento
+  @@index([cabecera_re])
+  @@index([idconcepto_egreso])
+}

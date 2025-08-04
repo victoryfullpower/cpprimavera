@@ -1,0 +1,8 @@
+const PrinterIcon = (props) => (
+    <svg aria-hidden="true" fill="none" focusable="false" height="1em" role="presentation" viewBox="0 0 24 24" width="1em" {...props}>
+        <path d="M6 9V2h12v7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <path d="M18 14H6v8h12v-8z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+    </svg>
+)
+export default PrinterIcon;

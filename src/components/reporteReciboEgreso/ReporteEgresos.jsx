@@ -1,0 +1,199 @@
+import { useState, useEffect } from 'react'
+import { Button, Input, Pagination, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from '@nextui-org/react'
+import { format } from 'date-fns'
+import { PDFDownloadLink } from '@react-pdf/renderer'
+import ReporteEgresosPDF from './ReporteEgresosPDF'
+import ExportarExcelButton from './ExportarExcelButton'
+import DownloadIcon from '@/components/iconos/DownloadIcon'
+import FilePdfIcon from '@/components/iconos/FilePdfIcon'
+
+const ReporteEgresos = ({ empresa, usuario }) => {
+  const [fechaInicio, setFechaInicio] = useState(format(new Date(), 'yyyy-MM-01'))
+  const [fechaFin, setFechaFin] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [totalPages, setTotalPages] = useState(1)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalMonto, setTotalMonto] = useState(0)
+  const { isOpen, onOpen, onOpenChange } = useDisclosure()
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/reportes/recibos-egreso', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fechaInicio,
+          fechaFin,
+          page,
+          pageSize
+        })
+      })
+
+      if (!response.ok) throw new Error('Error al obtener datos')
+
+      const result = await response.json()
+      setData(result.data)
+      setTotalPages(result.totalPages)
+      
+      // Calcular el monto total
+      const total = result.data.reduce((sum, recibo) => {
+        return sum + recibo.detalles.reduce((detalleSum, detalle) => {
+          return detalleSum + Number(detalle.monto)
+        }, 0)
+      }, 0)
+      setTotalMonto(total)
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [fechaInicio, fechaFin, page, pageSize])
+
+  const handleGenerarReporte = () => {
+    setPage(1)
+    fetchData()
+  }
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4 text-white">Reporte de Recibos de Egreso</h1>
+
+      {/* Resumen de totales */}
+      {!loading && data.length > 0 && (
+        <div className="bg-blue-100 p-4 rounded-lg mb-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-semibold">Periodo:</p>
+              <p>{format(new Date(fechaInicio + 'T00:00:00'), 'dd/MM/yyyy')} - {format(new Date(fechaFin + 'T00:00:00'), 'dd/MM/yyyy')}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold text-black">Total General:</p>
+              <p className="text-xl font-bold text-black">S/ {totalMonto.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <label className="block text-sm font-medium mb-1">Fecha Inicio</label>
+          <Input
+            type="date"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium mb-1">Fecha Fin</label>
+          <Input
+            type="date"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
+          />
+        </div>
+        <div className="flex items-end">
+          <Button color="primary" onPress={handleGenerarReporte}>
+            Generar Reporte
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <PDFDownloadLink
+          document={<ReporteEgresosPDF usuario={usuario} data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} empresa={empresa} />}
+          fileName={`Recibos_Egreso_${fechaInicio}_a_${fechaFin}.pdf`}
+        >
+          {({ loading: pdfLoading }) => (
+            <Button 
+              color="danger" 
+              startContent={<FilePdfIcon />}
+              isLoading={pdfLoading}
+            >
+              {pdfLoading ? 'Generando PDF...' : 'Exportar a PDF'}
+            </Button>
+          )}
+        </PDFDownloadLink>
+
+        <ExportarExcelButton data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} tipo="egreso" />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center">
+          <Spinner />
+        </div>
+      ) : data.length === 0 ? (
+        <p className="text-center text-gray-500">No hay datos para mostrar</p>
+      ) : (
+        <>
+          <div className="overflow-auto">
+            <Table aria-label="Reporte de recibos de egreso">
+              <TableHeader>
+                <TableColumn>N° Recibo</TableColumn>
+                <TableColumn>Fecha</TableColumn>
+                <TableColumn>Concepto</TableColumn>
+                <TableColumn>Descripción</TableColumn>
+                <TableColumn>Monto</TableColumn>
+                <TableColumn>Usuario</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {data.flatMap(recibo =>
+                  recibo.detalles.map((detalle, index) => (
+                    <TableRow key={`${recibo.idrecibo_egreso}-${index}`}>
+                      <TableCell>{recibo.numerorecibo_egreso}</TableCell>
+                      <TableCell>{format(new Date(recibo.fecharecibo_egreso), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{detalle.concepto.descripcion}</TableCell>
+                      <TableCell>{detalle.descripcion || '-'}</TableCell>
+                      <TableCell>S/ {Number(detalle.monto).toFixed(2)}</TableCell>
+                      <TableCell>{recibo.createdBy.username}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex justify-center mt-4">
+            <Pagination
+              total={totalPages}
+              page={page}
+              onChange={setPage}
+              showControls
+              showShadow
+            />
+          </div>
+        </>
+      )}
+
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="full">
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Vista Previa del Reporte</ModalHeader>
+              <ModalBody>
+                <div className="h-[80vh]">
+                  <div width="100%" height="100%">
+                    <ReporteEgresosPDF data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} empresa={empresa} usuario={usuario} />
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button onPress={onClose}>Cerrar</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+    </div>
+  )
+}
+
+export default ReporteEgresos

@@ -1,0 +1,286 @@
+import { NextResponse } from 'next/server'
+import db from '@/libs/db'
+import { getSession } from '@/libs/auth'
+
+export async function GET(request, { params }) {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const recibo = await db.recibo_ingreso.findUnique({
+      where: {
+        idrecibo_ingreso: parseInt(params.id)
+      },
+      include: {
+        metodoPago: true,
+        stand: {
+          include: {
+            client: true
+          }
+        },
+        detalles: {
+          include: {
+            concepto: true,
+            detalleDeuda: true
+          }
+        },
+        createdBy: {
+          select: {
+            id: true,
+            username: true
+          }
+        },
+        updatedBy: {
+          select: {
+            id: true,
+            username: true
+          }
+        }
+      }
+    })
+
+    if (!recibo) {
+      return NextResponse.json(
+        { error: "Recibo no encontrado" },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json(recibo)
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Error al obtener recibo: " + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+
+export async function PUT(request, { params }) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const { 
+      idmetodo_pago, 
+      idstand, 
+      identidad_recaudadora,
+      numero_operacion, 
+      detalles 
+    } = await request.json()
+    const { id } = params
+
+    // Validar número de operación si viene
+    if (numero_operacion && !/^[a-zA-Z0-9]+$/.test(numero_operacion)) {
+      return NextResponse.json(
+        { error: "El número de operación solo puede contener letras y números" },
+        { status: 400 }
+      )
+    }
+
+    // Validar montos de pago
+    const montosInvalidos = detalles.some(det => 
+      isNaN(parseFloat(det.montoPago)) || parseFloat(det.montoPago) <= 0
+    );
+
+    if (montosInvalidos) {
+      return NextResponse.json(
+        { error: "Los montos de pago deben ser valores positivos" },
+        { status: 400 }
+      );
+    }
+
+    // Preparar datos de actualización
+    const updateData = {
+      idmetodo_pago: parseInt(idmetodo_pago),
+      identidad_recaudadora: identidad_recaudadora ? parseInt(identidad_recaudadora) : null,
+      total: detalles.reduce((sum, det) => sum + parseFloat(det.montoPago), 0),
+      updatedby: session.user.id,
+      detalles: {
+        deleteMany: {}, // Eliminar todos los detalles existentes
+        create: detalles.map(det => ({
+          idconcepto: parseInt(det.idconcepto),
+          fechadeuda: new Date(det.fechadeuda),
+          idregdeuda_detalle: det.idregdeuda_detalle ? parseInt(det.idregdeuda_detalle) : null,
+          monto: parseFloat(det.montoPago),
+          descripcion: det.descripcion || null // Campo para descripción manual
+        }))
+      }
+    }
+
+    // Solo actualizar idstand si viene en el request (para recibos por cobro)
+    if (idstand !== undefined) {
+      updateData.idstand = idstand ? parseInt(idstand) : null
+    }
+
+    // Actualizar número de operación si viene
+    if (numero_operacion !== undefined) {
+      updateData.numero_operacion = numero_operacion || null
+    }
+
+    // Actualizar recibo con relaciones completas
+    const recibo = await db.recibo_ingreso.update({
+      where: { idrecibo_ingreso: parseInt(id) },
+      data: updateData,
+      include: {
+        metodoPago: true,
+        stand: {
+          include: {
+            client: true
+          }
+        },
+        entidadRecaudadora: true,
+        detalles: {
+          include: {
+            detalleDeuda: true,
+            concepto: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(recibo)
+
+  } catch (error) {
+    console.error('Error al actualizar recibo:', error)
+    return NextResponse.json(
+      { error: "Error al actualizar recibo: " + error.message },
+      { status: 500 }
+    )
+  }
+}
+// export async function PUT(request, { params }) {
+//   const session = await getSession()
+//   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+//   try {
+//     const { 
+//       idmetodo_pago, 
+//       idstand, 
+//       identidad_recaudadora,
+//       numero_operacion, 
+//       detalles 
+//     } = await request.json()
+//     const { id } = params
+
+//     // Validaciones
+//     if (numero_operacion && !/^[a-zA-Z0-9]+$/.test(numero_operacion)) {
+//       return NextResponse.json(
+//         { error: "El número de operación solo puede contener letras y números" },
+//         { status: 400 }
+//       )
+//     }
+
+//     const montosInvalidos = detalles.some(det => 
+//       isNaN(parseFloat(det.monto)) || parseFloat(det.monto) <= 0
+//     );
+
+//     if (montosInvalidos) {
+//       return NextResponse.json(
+//         { error: "Los montos de pago deben ser valores positivos" },
+//         { status: 400 }
+//       );
+//     }
+
+//     // Datos completos para actualizar
+//     const updateData = {
+//       idmetodo_pago: parseInt(idmetodo_pago),
+//       idstand: parseInt(idstand),
+//       identidad_recaudadora: identidad_recaudadora ? parseInt(identidad_recaudadora) : null,
+//       total: detalles.reduce((sum, det) => sum + parseFloat(det.monto), 0),
+//       updatedby: session.user.id,
+//       detalles: {
+//         deleteMany: {},
+//         create: detalles.map(det => ({
+//           idconcepto: parseInt(det.idconcepto),
+//           fechadeuda: new Date(det.fechadeuda),
+//           idregdeuda_detalle: parseInt(det.idregdeuda_detalle),
+//           monto: parseFloat(det.monto)
+//         }))
+//       }
+//     }
+
+//     // Actualizar número de operación
+//     if (numero_operacion !== undefined) {
+//       updateData.numero_operacion = numero_operacion || null
+//     }
+
+//     // Actualizar recibo con relaciones completas
+//     const recibo = await db.recibo_ingreso.update({
+//       where: { idrecibo_ingreso: parseInt(id) },
+//       data: updateData,
+//       include: {
+//         metodoPago: true,
+//         stand: {
+//           include: {
+//             client: true
+//           }
+//         },
+//         entidadRecaudadora: true,
+//         detalles: {
+//           include: {
+//             detalleDeuda: true,
+//             concepto: true
+//           }
+//         }
+//       }
+//     })
+
+//     return NextResponse.json(recibo)
+
+//   } catch (error) {
+//     return NextResponse.json(
+//       { error: "Error al actualizar recibo: " + error.message },
+//       { status: 500 }
+//     )
+//   }
+// }
+export async function DELETE(request, { params }) {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Primero eliminar los detalles
+    await db.recibo_ingreso_detalle.deleteMany({
+      where: { cabecera_ri: parseInt(params.id) }
+    })
+
+    // Luego eliminar la cabecera
+    await db.recibo_ingreso.delete({
+      where: {
+        idrecibo_ingreso: parseInt(params.id)
+      }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Error al eliminar recibo: " + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { estado } = await request.json()
+
+    const reciboActualizado = await db.recibo_ingreso.update({
+      where: { idrecibo_ingreso: parseInt(params.id) },
+      data: {
+        estado,
+        updatedby: session.user.id
+      }
+    })
+
+    return NextResponse.json(reciboActualizado)
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Error al cambiar estado: " + error.message },
+      { status: 500 }
+    )
+  }
+}

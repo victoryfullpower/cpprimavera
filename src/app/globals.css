@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    @apply bg-neutral-950;
+}
+
+/* styles/globals.css o tu archivo principal CSS */
+.react-datepicker {
+  font-family: 'Inter', sans-serif; /* Usa la misma fuente que tu app */
+  border: 1px solid #e4e4e7; /* Borde similar a los inputs de NextUI */
+  border-radius: 8px; /* Bordes redondeados */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* Sombra suave */
+}
+
+.react-datepicker__header {
+  background-color: #f4f4f5; /* Fondo del header */
+  border-bottom: none; /* Quitamos el borde por defecto */
+  border-radius: 8px 8px 0 0; /* Redondeamos solo arriba */
+  padding: 12px 0; /* Más espacio interno */
+}
+
+.react-datepicker__current-month {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #18181b; /* Texto oscuro */
+}
+
+.react-datepicker__day-name {
+  color: #71717a; /* Color para los nombres de días */
+  font-weight: 500;
+  width: 2rem;
+  line-height: 2rem;
+}
+
+.react-datepicker__day {
+  width: 2rem;
+  line-height: 2rem;
+  margin: 0.1rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.react-datepicker__day:hover {
+  background-color: #e4e4e7; /* Efecto hover */
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #006FEE; /* Azul de NextUI */
+  color: white;
+}
+
+.react-datepicker__day--selected:hover {
+  background-color: #005bc4; /* Azul más oscuro al hover */
+}
+
+.react-datepicker__navigation {
+  top: 12px;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: #71717a; /* Color de las flechas */
+  border-width: 2px 2px 0 0;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #e4e4e7;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.react-datepicker__input-container input:focus {
+  outline: none;
+  border-color: #006FEE; /* Borde azul al enfocar */
+}
+
+/* Cambiar tamaño del datepicker */
+.react-datepicker {
+  font-size: 0.875rem;
+}
+
+/* Estilo para el día actual */
+.react-datepicker__day--today {
+  font-weight: bold;
+  color: #006FEE;
+}
+
+/* Estilo para el mes dropdown */
+.react-datepicker__month-dropdown-container,
+.react-datepicker__year-dropdown-container {
+  padding: 0 5px;
+}
+
+/* Estilo para los días fuera del mes */
+.react-datepicker__day--outside-month {
+  color: #d4d4d8;
+  opacity: 0.6;
+}
+
+/* En tu archivo global.css */
+.btn-estado {
+  min-width: 100px;
+  transition: all 0.3s ease;
+}
+
+.btn-estado:hover {
+  transform: scale(1.05);
+}
+/* components/Sidebar.css */
+.submenu-item.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+  border-left: 3px solid #fff;
+}
+
+
+
+/* Contenedor principal */
+.custom-datepicker-wrapper {
+  width: 100%;
+}
+
+/* Input del datepicker */
+.custom-datepicker {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e4e4e7;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #18181b;
+  background-color: #ffffff;
+  transition: border-color 0.2s;
+  z-index: 1000;
+}
+
+.custom-datepicker:focus {
+  outline: none;
+  border-color: #006fee;
+  box-shadow: 0 0 0 2px rgba(0, 111, 238, 0.2);
+}
+
+/* Calendario desplegable */
+.custom-datepicker-popper {
+  z-index: 1000;
+  font-family: inherit;
+}
+
+.react-datepicker {
+  font-family: inherit;
+  border: 1px solid #e4e4e7;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.react-datepicker__header {
+  background-color: #f4f4f5;
+  border-bottom: 1px solid #e4e4e7;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  color: #3f3f46;
+  font-weight: 500;
+}
+
+.react-datepicker__day {
+  color: #18181b;
+  border-radius: 0.375rem;
+}
+
+.react-datepicker__day:hover {
+  background-color: #f4f4f5;
+}
+
+.react-datepicker__day--selected {
+  background-color: #006fee;
+  color: white;
+}
+
+.react-datepicker__day--selected:hover {
+  background-color: #006fee;
+}
+
+.react-datepicker__navigation {
+  top: 10px;
+}
+
+.react-datepicker__navigation--previous {
+  border-right-color: #71717a;
+}
+
+.react-datepicker__navigation--next {
+  border-left-color: #71717a;
+}
+
+/* Para integrar con el tema de NextUI */
+.react-datepicker__triangle {
+  display: none;
+}
+
+
