@@ -109,6 +109,6 @@ temp/
 # Prisma
 prisma/migrations/
 
-# Backups
-backups/
-tmp/backups/
+# Backups (comentado para incluir en el repositorio)
+# backups/
+# tmp/backups/
