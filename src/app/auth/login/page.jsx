@@ -12,77 +12,123 @@ function LoginPage() {
   } = useForm();
   const router = useRouter()
   const [error, setError] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
   
   const onSubmit = handleSubmit(async (data) => {
+    setIsLoading(true)
+    setError(null)
 
-    const res = await signIn("credentials", {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    });
+    try {
+      const res = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
 
-    console.log("login",res)
-    if (res.error) {
-      setError(res.error)
-    } else {
-      router.push('/dashboard/cliente/')
-      router.refresh()
+      console.log("login",res)
+      if (res.error) {
+        // Translate error messages to Spanish
+        let errorMessage = res.error
+        if (res.error === 'No user found') {
+          errorMessage = 'Usuario no encontrado'
+        } else if (res.error === 'Wrong password') {
+          errorMessage = 'Contraseña incorrecta'
+        } else if (res.error === 'CredentialsSignin') {
+          errorMessage = 'Credenciales inválidas'
+        }
+        setError(errorMessage)
+      } else {
+        router.push('/dashboard/cliente/')
+        router.refresh()
+      }
+    } catch (error) {
+      setError('Error de conexión. Intente nuevamente.')
+    } finally {
+      setIsLoading(false)
     }
   });
 
   return (
-    <div className="h-[100vh] flex justify-center items-center">
-      <form onSubmit={onSubmit} className="w-1/4">
-
+    <div className="h-[100vh] flex justify-center items-center bg-gray-900">
+      <form onSubmit={onSubmit} className="w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg">
         {error && (
-          <p className="bg-red-500 text-lg text-white p-3 rounded mb-2">{error}</p>
+          <div className="bg-red-500 text-white p-4 rounded-lg mb-6 text-center">
+            <p className="font-medium">{error}</p>
+          </div>
         )}
 
-        <h1 className="text-slate-200 font-bold text-4xl mb-4">Login</h1>
+        <h1 className="text-slate-200 font-bold text-3xl mb-6 text-center">Iniciar Sesión</h1>
 
-        <label htmlFor="email" className="text-slate-500 mb-2 block text-sm">
-          Email:
-        </label>
-        <input
-          type="email"
-          {...register("email", {
-            required: {
-              value: true,
-              message: "Email is required",
-            },
-          })}
-          className="p-3 rounded block mb-2 bg-slate-900 text-slate-300 w-full"
-          placeholder="user@email.com"
-        />
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="email" className="text-slate-300 mb-2 block text-sm font-medium">
+              Email:
+            </label>
+            <input
+              type="email"
+              {...register("email", {
+                required: {
+                  value: true,
+                  message: "El email es requerido",
+                },
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: "Email inválido",
+                },
+              })}
+              className="p-3 rounded-lg block w-full bg-gray-700 text-slate-200 border border-gray-600 focus:border-blue-500 focus:outline-none transition-colors"
+              placeholder="usuario@email.com"
+              disabled={isLoading}
+            />
+            {errors.email && (
+              <span className="text-red-400 text-xs mt-1 block">{errors.email.message}</span>
+            )}
+          </div>
 
-        {errors.email && (
-          <span className="text-red-500 text-xs">{errors.email.message}</span>
-        )}
+          <div>
+            <label htmlFor="password" className="text-slate-300 mb-2 block text-sm font-medium">
+              Contraseña:
+            </label>
+            <input
+              type="password"
+              {...register("password", {
+                required: {
+                  value: true,
+                  message: "La contraseña es requerida",
+                },
+                minLength: {
+                  value: 6,
+                  message: "La contraseña debe tener al menos 6 caracteres",
+                },
+              })}
+              className="p-3 rounded-lg block w-full bg-gray-700 text-slate-200 border border-gray-600 focus:border-blue-500 focus:outline-none transition-colors"
+              placeholder="******"
+              disabled={isLoading}
+            />
+            {errors.password && (
+              <span className="text-red-400 text-xs mt-1 block">
+                {errors.password.message}
+              </span>
+            )}
+          </div>
 
-        <label htmlFor="password" className="text-slate-500 mb-2 block text-sm">
-          Password:
-        </label>
-        <input
-          type="password"
-          {...register("password", {
-            required: {
-              value: true,
-              message: "Password is required",
-            },
-          })}
-          className="p-3 rounded block mb-2 bg-slate-900 text-slate-300 w-full"
-          placeholder="******"
-        />
+          <button 
+            type="submit" 
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+          </button>
+        </div>
 
-        {errors.password && (
-          <span className="text-red-500 text-xs">
-            {errors.password.message}
-          </span>
-        )}
-
-        <button className="w-full bg-blue-500 text-white p-3 rounded-lg mt-2">
-          Login
-        </button>
+        <div className="mt-6 text-center">
+          <p className="text-slate-400 text-sm">
+            ¿No tienes cuenta?{' '}
+            <a href="/auth/register" className="text-blue-400 hover:text-blue-300 underline">
+              Regístrate aquí
+            </a>
+          </p>
+        </div>
       </form>
     </div>
   );
