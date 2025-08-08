@@ -260,27 +260,29 @@ export default function EmpresaPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        color="primary"
-                                        onPress={() => {
-                                            setCurrentEmpresa({
-                                                idempresa: item.idempresa,
-                                                nombre_empresa: item.nombre_empresa,
-                                                ruc: item.ruc,
-                                                nombre_comercial: item.nombre_comercial,
-                                                direccion: item.direccion,
-                                                telefono: item.telefono,
-                                                celular: item.celular,
-                                                correo: item.correo,
-                                                estado: item.estado
-                                            })
-                                            onOpen()
-                                        }}
-                                    >
-                                        Editar
-                                    </Button>
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => {
+                                                setCurrentEmpresa({
+                                                    idempresa: item.idempresa,
+                                                    nombre_empresa: item.nombre_empresa,
+                                                    ruc: item.ruc,
+                                                    nombre_comercial: item.nombre_comercial,
+                                                    direccion: item.direccion,
+                                                    telefono: item.telefono,
+                                                    celular: item.celular,
+                                                    correo: item.correo,
+                                                    estado: item.estado
+                                                })
+                                                onOpen()
+                                            }}
+                                        >
+                                            Editar
+                                        </Button>
+                                    )}
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Button
                                             size="sm"

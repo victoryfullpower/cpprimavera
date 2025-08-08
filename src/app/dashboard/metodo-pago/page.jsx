@@ -240,21 +240,23 @@ export default function MetodoPagoPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        color="primary"
-                                        onPress={() => {
-                                            setCurrentMetodo({
-                                                idmetodo_pago: item.idmetodo_pago,
-                                                descripcion: item.descripcion,
-                                                estado: item.estado
-                                            })
-                                            onOpen()
-                                        }}
-                                    >
-                                        Editar
-                                    </Button>
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => {
+                                                setCurrentMetodo({
+                                                    idmetodo_pago: item.idmetodo_pago,
+                                                    descripcion: item.descripcion,
+                                                    estado: item.estado
+                                                })
+                                                onOpen()
+                                            }}
+                                        >
+                                            Editar
+                                        </Button>
+                                    )}
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Button
                                             size="sm"

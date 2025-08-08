@@ -266,12 +266,13 @@ export default function RecibosIngresoPage() {
 
                             <TableCell>
                                 <div className="flex gap-2">
-                                   
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
                                         <Tooltip content="Editar" color="primary">
                                             <Button isIconOnly size="sm" variant="light" onPress={() => initEdit(recibo)}>
                                                 <EditIcon className="text-lg text-primary" />
                                             </Button>
                                         </Tooltip>
+                                    )}
                                     
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Tooltip content="Eliminar" color="danger">

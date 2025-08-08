@@ -243,23 +243,25 @@ export default function StandsPage() {
                             <TableCell>{item.client?.nombre || 'Sin asignar'}</TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        color="primary"
-                                        onPress={() => {
-                                            setCurrentStand({
-                                                idstand: item.idstand,
-                                                descripcion: item.descripcion,
-                                                nivel: item.nivel,
-                                                idcliente: item.idcliente
-                                            })
-                                            setClienteSearch('')
-                                            onOpen()
-                                        }}
-                                    >
-                                        Editar
-                                    </Button>
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => {
+                                                setCurrentStand({
+                                                    idstand: item.idstand,
+                                                    descripcion: item.descripcion,
+                                                    nivel: item.nivel,
+                                                    idcliente: item.idcliente
+                                                })
+                                                setClienteSearch('')
+                                                onOpen()
+                                            }}
+                                        >
+                                            Editar
+                                        </Button>
+                                    )}
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Button
                                             size="sm"

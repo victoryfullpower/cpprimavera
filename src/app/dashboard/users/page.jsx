@@ -253,8 +253,14 @@ export default function UsersPage() {
     <TableCell>{item.email}</TableCell>
     <TableCell>{item.username}</TableCell>
     <TableCell>
-        <Chip color={item.role === 'ADMIN' ? "primary" : "default"}>
-            {item.role === 'ADMIN' ? 'Administrador' : 'Usuario'}
+        <Chip color={
+            item.role === 'SUPERADMIN' ? "danger" : 
+            item.role === 'ADMIN' ? "primary" : 
+            "default"
+        }>
+            {item.role === 'SUPERADMIN' ? 'Super Administrador' : 
+             item.role === 'ADMIN' ? 'Administrador' : 
+             'Usuario'}
         </Chip>
     </TableCell>
     <TableCell>
@@ -274,24 +280,26 @@ export default function UsersPage() {
     </TableCell>
     <TableCell>
         <div className="flex gap-2">
-            <Button
-                size="sm"
-                variant="flat"
-                color="primary"
-                onPress={() => {
-                    setCurrentUser({
-                        id: item.id,
-                        email: item.email,
-                        username: item.username,
-                        password: '',
-                        role: item.role,
-                        estado: item.estado
-                    })
-                    onOpen()
-                }}
-            >
-                Editar
-            </Button>
+            {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                <Button
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    onPress={() => {
+                        setCurrentUser({
+                            id: item.id,
+                            email: item.email,
+                            username: item.username,
+                            password: '',
+                            role: item.role,
+                            estado: item.estado
+                        })
+                        onOpen()
+                    }}
+                >
+                    Editar
+                </Button>
+            )}
             {session.user.role === 'SUPERADMIN' && (
                 <Button
                     size="sm"

@@ -186,17 +186,19 @@ export default function ClientesPage() {
               <TableCell>{item.nombre}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    color="primary"
-                    onPress={() => {
-                      setCurrentCliente(item)
-                      onOpen()
-                    }}
-                  >
-                    Editar
-                  </Button>
+                  {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      onPress={() => {
+                        setCurrentCliente(item)
+                        onOpen()
+                      }}
+                    >
+                      Editar
+                    </Button>
+                  )}
                   {session.user.role === 'SUPERADMIN' && (
                     <Button
                       size="sm"

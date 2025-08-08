@@ -240,21 +240,23 @@ export default function EntidadRecaudadoraPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        color="primary"
-                                        onPress={() => {
-                                            setCurrentEntidad({
-                                                identidad_recaudadora: item.identidad_recaudadora,
-                                                descripcion: item.descripcion,
-                                                estado: item.estado
-                                            })
-                                            onOpen()
-                                        }}
-                                    >
-                                        Editar
-                                    </Button>
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => {
+                                                setCurrentEntidad({
+                                                    identidad_recaudadora: item.identidad_recaudadora,
+                                                    descripcion: item.descripcion,
+                                                    estado: item.estado
+                                                })
+                                                onOpen()
+                                            }}
+                                        >
+                                            Editar
+                                        </Button>
+                                    )}
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Button
                                             size="sm"

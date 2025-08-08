@@ -249,23 +249,25 @@ export default function DocumentoNumeracionPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        color="primary"
-                                        onPress={() => {
-                                            setCurrentDocumento({
-                                                iddocumento_numeracion: item.iddocumento_numeracion,
-                                                descripcion: item.descripcion,
-                                                numeroactual: item.numeroactual,
-                                                apartir_de_numeracion: item.apartir_de_numeracion,
-                                                estado: item.estado
-                                            })
-                                            onOpen()
-                                        }}
-                                    >
-                                        Editar
-                                    </Button>
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => {
+                                                setCurrentDocumento({
+                                                    iddocumento_numeracion: item.iddocumento_numeracion,
+                                                    descripcion: item.descripcion,
+                                                    numeroactual: item.numeroactual,
+                                                    apartir_de_numeracion: item.apartir_de_numeracion,
+                                                    estado: item.estado
+                                                })
+                                                onOpen()
+                                            }}
+                                        >
+                                            Editar
+                                        </Button>
+                                    )}
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Button
                                             size="sm"
