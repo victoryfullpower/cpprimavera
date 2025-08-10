@@ -151,70 +151,111 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <Table
-        aria-label="Tabla de clientes"
-        bottomContent={
-          <div className="flex w-full justify-center">
-            <Pagination
-              isCompact
-              showControls
-              showShadow
-              color="primary"
-              page={page}
-              total={Math.ceil(filteredItems.length / rowsPerPage)}
-              onChange={setPage}
-            />
-          </div>
-        }
-        classNames={{
-          wrapper: "min-h-[400px]",
-        }}
-      >
-        <TableHeader>
-          <TableColumn key="idcliente" width="100px">ID</TableColumn>
-          <TableColumn key="nombre">Nombre</TableColumn>
-          <TableColumn key="acciones" width="150px">Acciones</TableColumn>
-        </TableHeader>
-        <TableBody
-          items={paginatedItems}
-          isLoading={loading}
-          loadingContent={<Spinner />}
-        >
-          {(item) => (
-            <TableRow key={item.idcliente}>
-              <TableCell>{item.idcliente}</TableCell>
-              <TableCell>{item.nombre}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
-                    <Button
-                      size="sm"
-                      variant="flat"
-                      color="primary"
-                      onPress={() => {
-                        setCurrentCliente(item)
-                        onOpen()
-                      }}
-                    >
-                      Editar
-                    </Button>
-                  )}
-                  {session.user.role === 'SUPERADMIN' && (
-                    <Button
-                      size="sm"
-                      variant="flat"
-                      color="danger"
-                      onPress={() => handleDelete(item.idcliente)}
-                    >
-                      Eliminar
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+            <Table
+                aria-label="Tabla de clientes"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="idcliente" width="100px">ID</TableColumn>
+                    <TableColumn key="nombre">Nombre</TableColumn>
+                    <TableColumn key="acciones" width="150px">Acciones</TableColumn>
+                </TableHeader>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.idcliente}>
+                            <TableCell>{item.idcliente}</TableCell>
+                            <TableCell>{item.nombre}</TableCell>
+                            <TableCell>
+                                <div className="flex gap-2">
+                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => {
+                                                setCurrentCliente(item)
+                                                onOpen()
+                                            }}
+                                        >
+                                            Editar
+                                        </Button>
+                                    )}
+                                    {session.user.role === 'SUPERADMIN' && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="danger"
+                                            onPress={() => handleDelete(item.idcliente)}
+                                        >
+                                            Eliminar
+                                        </Button>
+                                    )}
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
+
+            {(session.user.role === 'USER') && (
+            <Table
+                aria-label="Tabla de clientes"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="idcliente" width="100px">ID</TableColumn>
+                    <TableColumn key="nombre">Nombre</TableColumn>
+                </TableHeader>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.idcliente}>
+                            <TableCell>{item.idcliente}</TableCell>
+                            <TableCell>{item.nombre}</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
 
       {/* Modal para crear/editar */}
       <Modal isOpen={isOpen} onOpenChange={onOpenChange}>

@@ -287,6 +287,7 @@ export default function FormReciboEgreso({ recibo, onClose, onSave }) {
                                 descripcion: concepto?.descripcion || ''
                             })
                         }}
+                        isDisabled={session.user.role === 'USER' && recibo}
                     >
                         {conceptosEgreso.map(concepto => (
                             <SelectItem key={concepto.idconcepto_egreso} value={concepto.idconcepto_egreso}>
@@ -299,6 +300,7 @@ export default function FormReciboEgreso({ recibo, onClose, onSave }) {
                         label="Descripción (Opcional)"
                         value={nuevoDetalle.descripcion}
                         onChange={(e) => setNuevoDetalle({ ...nuevoDetalle, descripcion: e.target.value })}
+                        isDisabled={session.user.role === 'USER' && recibo}
                     />
 
                     <Input
@@ -309,6 +311,7 @@ export default function FormReciboEgreso({ recibo, onClose, onSave }) {
                         startContent={<span className="text-default-400 text-small">S/.</span>}
                         min="0.01"
                         step="0.01"
+                        isDisabled={session.user.role === 'USER' && recibo}
                     />
                 </div>
 
@@ -316,7 +319,7 @@ export default function FormReciboEgreso({ recibo, onClose, onSave }) {
                     <Button
                         color="primary"
                         onPress={agregarDetalle}
-                        isDisabled={!nuevoDetalle.idconcepto_egreso || !nuevoDetalle.monto}
+                        isDisabled={!nuevoDetalle.idconcepto_egreso || !nuevoDetalle.monto || (session.user.role === 'USER' && recibo)}
                     >
                         Agregar Detalle
                     </Button>
@@ -358,6 +361,7 @@ export default function FormReciboEgreso({ recibo, onClose, onSave }) {
                                                     size="sm"
                                                     color="danger"
                                                     onPress={() => quitarDetalle(index)}
+                                                    isDisabled={session.user.role === 'USER' && recibo}
                                                 >
                                                     Quitar
                                                 </Button>
@@ -380,22 +384,34 @@ export default function FormReciboEgreso({ recibo, onClose, onSave }) {
                     </div>
                     <div className="flex gap-2">
                         <Button onPress={onClose}>Cancelar</Button>
-                        {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') &&(<Button
-                            type="submit"
-                            color="primary"
-                            isLoading={isSubmitting}
-                            isDisabled={form.detalles.length === 0}
-                        >
-                            {recibo ? 'Guardar' : 'Guardar e Imprimir'}
-                        </Button>)}
-                        {session.user.role === 'USER' && !recibo &&(<Button
-                            type="submit"
-                            color="primary"
-                            isLoading={isSubmitting}
-                            isDisabled={form.detalles.length === 0}
-                        >
-                            {recibo ? 'Guardar' : 'Guardar e Imprimir'}
-                        </Button>)}
+                        {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                            <Button
+                                type="submit"
+                                color="primary"
+                                isLoading={isSubmitting}
+                                isDisabled={form.detalles.length === 0}
+                            >
+                                {recibo ? 'Guardar' : 'Guardar e Imprimir'}
+                            </Button>
+                        )}
+                        {session.user.role === 'USER' && !recibo && (
+                            <Button
+                                type="submit"
+                                color="primary"
+                                isLoading={isSubmitting}
+                                isDisabled={form.detalles.length === 0}
+                            >
+                                Guardar e Imprimir
+                            </Button>
+                        )}
+                        {session.user.role === 'USER' && recibo && (
+                            <Button
+                                color="primary"
+                                isDisabled
+                            >
+                                Solo Lectura
+                            </Button>
+                        )}
                     </div>
                 </div>
             </form>

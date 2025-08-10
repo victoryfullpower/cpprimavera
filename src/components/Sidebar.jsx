@@ -149,9 +149,11 @@ export default function Sidebar({ userRole }) {
               <Link href="/dashboard/entidad-recaudadora" className={`submenu-item ${isActive('/dashboard/entidad-recaudadora') ? 'active' : ''}`}>
                 <FiTruck className="inline mr-2" /> Entidad Recaudadora
               </Link>
-              <Link href="/dashboard/empresa" className={`submenu-item ${isActive('/dashboard/empresa') ? 'active' : ''}`}>
-                <FiBriefcase className="inline mr-2" /> Empresa
-              </Link>
+              {showAdminOptions && (
+                <Link href="/dashboard/empresa" className={`submenu-item ${isActive('/dashboard/empresa') ? 'active' : ''}`}>
+                  <FiBriefcase className="inline mr-2" /> Empresa
+                </Link>
+              )}
               <Link href="/dashboard/concepto-egreso" className={`submenu-item ${isActive('/dashboard/concepto-egreso') ? 'active' : ''}`}>
                 <FiFileText className="inline mr-2" /> Concepto Egreso
               </Link>

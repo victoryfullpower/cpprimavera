@@ -97,16 +97,39 @@ export async function PUT(request, { params }) {
           where: { idregdeuda_detalle: parseInt(detalle.idregdeuda_detalle) },
           include: {
             detallesReciboIngreso: {
-              select: { monto: true }
+              select: { monto: true, idrecibo_ingreso_detalle: true }
             }
           }
         });
 
         if (deudaDetalle) {
-          const totalPagado = deudaDetalle.detallesReciboIngreso.reduce(
-            (sum, det) => sum + parseFloat(det.monto.toString()),
-            0
-          );
+          // Obtener el recibo actual para excluir su pago anterior del cálculo
+          const reciboActual = await db.recibo_ingreso.findUnique({
+            where: { idrecibo_ingreso: parseInt(id) },
+            include: {
+              detalles: {
+                where: { idregdeuda_detalle: parseInt(detalle.idregdeuda_detalle) },
+                select: { monto: true }
+              }
+            }
+          });
+
+          // Calcular el total pagado excluyendo el pago actual del recibo
+          let totalPagado = 0;
+          if (reciboActual && reciboActual.detalles.length > 0) {
+            // Excluir el pago anterior de este recibo
+            const pagoAnterior = reciboActual.detalles[0].monto;
+            totalPagado = deudaDetalle.detallesReciboIngreso.reduce(
+              (sum, det) => sum + parseFloat(det.monto.toString()),
+              0
+            ) - parseFloat(pagoAnterior.toString());
+          } else {
+            totalPagado = deudaDetalle.detallesReciboIngreso.reduce(
+              (sum, det) => sum + parseFloat(det.monto.toString()),
+              0
+            );
+          }
+
           const saldoPendiente = parseFloat(deudaDetalle.monto.toString()) - totalPagado;
           const montoPago = parseFloat(detalle.montoPago);
 

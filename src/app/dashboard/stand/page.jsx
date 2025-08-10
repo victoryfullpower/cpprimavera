@@ -203,7 +203,7 @@ export default function StandsPage() {
                     </Button>
                 </div>
             </div>
-
+            {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
             <Table
                 aria-label="Tabla de stands"
                 bottomContent={
@@ -228,7 +228,7 @@ export default function StandsPage() {
                     <TableColumn key="descripcion">Descripción</TableColumn>
                     <TableColumn key="nivel" width="100px">Nivel</TableColumn>
                     <TableColumn key="cliente">Cliente</TableColumn>
-                    <TableColumn key="acciones" width="150px">Acciones</TableColumn>
+    <TableColumn key="acciones" width="150px">Acciones</TableColumn>
                 </TableHeader>
                 <TableBody
                     items={paginatedItems}
@@ -241,7 +241,7 @@ export default function StandsPage() {
                             <TableCell>{item.descripcion}</TableCell>
                             <TableCell>{item.nivel}</TableCell>
                             <TableCell>{item.client?.nombre || 'Sin asignar'}</TableCell>
-                            <TableCell>
+                           <TableCell>
                                 <div className="flex gap-2">
                                     {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
                                         <Button
@@ -278,7 +278,51 @@ export default function StandsPage() {
                     )}
                 </TableBody>
             </Table>
+            )}
 
+{(session.user.role === 'USER') && (
+            <Table
+                aria-label="Tabla de stands"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="idstand" width="80px">ID</TableColumn>
+                    <TableColumn key="descripcion">Descripción</TableColumn>
+                    <TableColumn key="nivel" width="100px">Nivel</TableColumn>
+                    <TableColumn key="cliente">Cliente</TableColumn>
+                </TableHeader>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.idstand}>
+                            <TableCell>{item.idstand}</TableCell>
+                            <TableCell>{item.descripcion}</TableCell>
+                            <TableCell>{item.nivel}</TableCell>
+                            <TableCell>{item.client?.nombre || 'Sin asignar'}</TableCell>
+                           
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
             {/* Modal para crear/editar */}
             <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
                 <ModalContent>

@@ -44,6 +44,11 @@ export async function GET(request, { params }) {
           select: {
             username: true
           }
+        },
+        detallesReciboIngreso: {
+          select: {
+            monto: true
+          }
         }
       }
     })
@@ -56,10 +61,20 @@ export async function GET(request, { params }) {
     }
 
     // Transformar para asegurar tipos correctos
+    const totalPagado = detalle.detallesReciboIngreso.reduce(
+      (sum, det) => sum + parseFloat(det.monto.toString()),
+      0
+    );
+    
+    const montoTotal = parseFloat(detalle.monto.toString());
+    const saldoPendiente = montoTotal - totalPagado;
+    
     const detalleTransformado = {
       ...detalle,
-      monto: parseFloat(detalle.monto.toString()),
-      mora: detalle.mora ? parseFloat(detalle.mora.toString()) : 0
+      monto: montoTotal,
+      mora: detalle.mora ? parseFloat(detalle.mora.toString()) : 0,
+      totalPagado,
+      saldoPendiente: Math.max(0, saldoPendiente) // Asegurar que no sea negativo
     }
 
     return NextResponse.json(detalleTransformado)

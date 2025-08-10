@@ -209,6 +209,7 @@ export default function ConceptosDeudaPage() {
                 </div>
             </div>
 
+            {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
             <Table
                 aria-label="Tabla de conceptos de deuda"
                 bottomContent={
@@ -248,27 +249,25 @@ export default function ConceptosDeudaPage() {
                             <TableCell>{item.idconcepto}</TableCell>
                             <TableCell>{item.descripcion}</TableCell>
                             <TableCell>
-                                <Chip color={item.estado ? "success" : "danger"}>
+                                <Chip
+                                    color={item.estado ? "success" : "danger"}
+                                    variant="flat"
+                                    size="sm"
+                                >
                                     {item.estado ? "Activo" : "Inactivo"}
                                 </Chip>
                             </TableCell>
                             <TableCell>
-                                <Chip color={item.deuda ? "primary" : "default"}>
+                                <Chip
+                                    color={item.deuda ? "warning" : "default"}
+                                    variant="flat"
+                                    size="sm"
+                                >
                                     {item.deuda ? "Sí" : "No"}
                                 </Chip>
                             </TableCell>
-                            <TableCell>
-                                {item.createdBy?.username || 'N/A'}
-                                <p className="text-xs text-gray-400">
-                                    {new Date(item.createdAt).toLocaleDateString('es-PE')}
-                                </p>
-                            </TableCell>
-                            <TableCell>
-                                {item.updatedBy?.username || 'N/A'}
-                                <p className="text-xs text-gray-400">
-                                    {new Date(item.updatedAt).toLocaleDateString('es-PE')}
-                                </p>
-                            </TableCell>
+                            <TableCell>{item.creadoPor || 'Sistema'}</TableCell>
+                            <TableCell>{item.actualizadoPor || 'Sistema'}</TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
                                     {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
@@ -277,12 +276,7 @@ export default function ConceptosDeudaPage() {
                                             variant="flat"
                                             color="primary"
                                             onPress={() => {
-                                                setCurrentConcepto({
-                                                    idconcepto: item.idconcepto,
-                                                    descripcion: item.descripcion,
-                                                    estado: item.estado,
-                                                    deuda: item.deuda
-                                                })
+                                                setCurrentConcepto(item)
                                                 onOpen()
                                             }}
                                         >
@@ -305,6 +299,71 @@ export default function ConceptosDeudaPage() {
                     )}
                 </TableBody>
             </Table>
+            )}
+
+            {(session.user.role === 'USER') && (
+            <Table
+                aria-label="Tabla de conceptos de deuda"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="idconcepto" width="80px">ID</TableColumn>
+                    <TableColumn key="descripcion">Descripción</TableColumn>
+                    <TableColumn key="estado" width="120px">Estado</TableColumn>
+                    <TableColumn key="deuda" width="120px">Es Deuda</TableColumn>
+                    <TableColumn key="creadoPor">Creado por</TableColumn>
+                    <TableColumn key="actualizadoPor">Actualizado por</TableColumn>
+                </TableHeader>
+
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.idconcepto}>
+                            <TableCell>{item.idconcepto}</TableCell>
+                            <TableCell>{item.descripcion}</TableCell>
+                            <TableCell>
+                                <Chip
+                                    color={item.estado ? "success" : "danger"}
+                                    variant="flat"
+                                    size="sm"
+                                >
+                                    {item.estado ? "Activo" : "Inactivo"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>
+                                <Chip
+                                    color={item.deuda ? "warning" : "default"}
+                                    variant="flat"
+                                    size="sm"
+                                >
+                                    {item.deuda ? "Sí" : "No"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>{item.creadoPor || 'Sistema'}</TableCell>
+                            <TableCell>{item.actualizadoPor || 'Sistema'}</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
 
             {/* Modal para crear/editar */}
             <Modal isOpen={isOpen} onOpenChange={onOpenChange}>

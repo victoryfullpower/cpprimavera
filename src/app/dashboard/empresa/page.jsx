@@ -205,6 +205,7 @@ export default function EmpresaPage() {
                 </div>
             </div>
 
+            {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
             <Table
                 aria-label="Tabla de empresas"
                 bottomContent={
@@ -299,6 +300,66 @@ export default function EmpresaPage() {
                     )}
                 </TableBody>
             </Table>
+            )}
+
+            {(session.user.role === 'USER') && (
+            <Table
+                aria-label="Tabla de empresas"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="idempresa" width="80px">ID</TableColumn>
+                    <TableColumn key="nombre_empresa">Nombre</TableColumn>
+                    <TableColumn key="ruc">RUC</TableColumn>
+                    <TableColumn key="estado" width="120px">Estado</TableColumn>
+                    <TableColumn key="creadoPor">Creado por</TableColumn>
+                </TableHeader>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.idempresa}>
+                            <TableCell>{item.idempresa}</TableCell>
+                            <TableCell>
+                                <div className="font-medium">{item.nombre_empresa}</div>
+                                {item.nombre_comercial && (
+                                    <div className="text-sm text-gray-400">{item.nombre_comercial}</div>
+                                )}
+                            </TableCell>
+                            <TableCell>{item.ruc}</TableCell>
+                            <TableCell>
+                                <Chip color={item.estado ? "success" : "danger"}>
+                                    {item.estado ? "Activo" : "Inactivo"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>
+                                {item.createdBy?.username || 'N/A'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
 
             {/* Modal para crear/editar */}
             <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">

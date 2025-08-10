@@ -185,6 +185,7 @@ export default function MetodoPagoPage() {
                 </div>
             </div>
 
+            {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
             <Table
                 aria-label="Tabla de métodos de pago"
                 bottomContent={
@@ -273,6 +274,66 @@ export default function MetodoPagoPage() {
                     )}
                 </TableBody>
             </Table>
+            )}
+
+            {(session.user.role === 'USER') && (
+            <Table
+                aria-label="Tabla de métodos de pago"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="idmetodo_pago" width="80px">ID</TableColumn>
+                    <TableColumn key="descripcion">Descripción</TableColumn>
+                    <TableColumn key="estado" width="120px">Estado</TableColumn>
+                    <TableColumn key="creadoPor">Creado por</TableColumn>
+                    <TableColumn key="actualizadoPor">Actualizado por</TableColumn>
+                </TableHeader>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.idmetodo_pago}>
+                            <TableCell>{item.idmetodo_pago}</TableCell>
+                            <TableCell>{item.descripcion}</TableCell>
+                            <TableCell>
+                                <Chip color={item.estado ? "success" : "danger"}>
+                                    {item.estado ? "Activo" : "Inactivo"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>
+                                {item.createdBy?.username || 'N/A'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                            <TableCell>
+                                {item.updatedBy?.username || 'N/A'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.updatedAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
 
             {/* Modal para crear/editar */}
             <Modal isOpen={isOpen} onOpenChange={onOpenChange}>

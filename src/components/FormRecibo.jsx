@@ -115,10 +115,16 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
             recibo.detalles.map(async detalle => {
               const res = await fetch(`/api/reg-deuda-detalle/${detalle.idregdeuda_detalle}`);
               const deudaDetalle = await res.json();
+              
+              // Usar el saldo pendiente calculado por la API
+              // Para edición, el saldo disponible es el saldo pendiente actual + el monto del recibo actual
+              const saldoDisponible = Number(deudaDetalle.saldoPendiente) + Number(detalle.monto);
+              
               return {
                 ...detalle,
                 montoDeuda: deudaDetalle.monto,
-                montoPago: detalle.monto
+                montoPago: detalle.monto,
+                saldoPendiente: saldoDisponible
               };
             })
           );
@@ -238,6 +244,14 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
       return
     }
 
+    // Validar que los montos de pago no excedan el saldo pendiente
+    for (const detalle of form.detalles) {
+      if (detalle.idregdeuda_detalle && detalle.montoPago > detalle.saldoPendiente) {
+        toast.error(`El monto de pago (S/. ${detalle.montoPago.toFixed(2)}) excede el saldo pendiente (S/. ${detalle.saldoPendiente.toFixed(2)}) para la deuda seleccionada`);
+        return;
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -303,7 +317,13 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
   };
 
   const agregarDeudaADetalle = (deuda) => {
-    const saldoDisponible = deuda.saldoPendiente || deuda.monto;
+    // Verificar que la deuda tenga saldo pendiente
+    if (deuda.saldoPendiente <= 0) {
+      toast.error('Esta deuda ya está completamente pagada');
+      return;
+    }
+    
+    const saldoDisponible = deuda.saldoPendiente;
     
     setForm(prev => ({
       ...prev,
@@ -391,6 +411,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
             isRequired
             errorMessage={showErrors && !form.idmetodo_pago ? "Seleccione un método de pago" : undefined}
             validationState={showErrors && !form.idmetodo_pago ? "invalid" : undefined}
+            isDisabled={session.user.role === 'USER' && recibo}
           >
             {metodosPago.map(metodo => (
               <SelectItem key={metodo.idmetodo_pago} value={metodo.idmetodo_pago}>
@@ -403,6 +424,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
             label="Entidad Recaudadora (Opcional)"
             selectedKeys={form.identidad_recaudadora ? [form.identidad_recaudadora.toString()] : []}
             onChange={(e) => setForm({...form, identidad_recaudadora: e.target.value})}
+            isDisabled={session.user.role === 'USER' && recibo}
           >
             {entidadesRecaudadoras.map(entidad => (
               <SelectItem key={entidad.identidad_recaudadora} value={entidad.identidad_recaudadora}>
@@ -423,6 +445,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
             description="Ingrese número de transacción bancaria o referencia"
             isInvalid={form.numero_operacion !== '' && !validateNumeroOperacion(form.numero_operacion)}
             errorMessage={!validateNumeroOperacion(form.numero_operacion) ? "Solo se permiten letras y números" : undefined}
+            isDisabled={session.user.role === 'USER' && recibo}
           />
 
           <Autocomplete
@@ -440,6 +463,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
             errorMessage={standError ? "Seleccione un stand válido" : undefined}
             validationState={standError ? "invalid" : undefined}
             onBlur={() => !form.idstand && setStandError(true)}
+            isDisabled={session.user.role === 'USER' && recibo}
           >
             {(stand) => (
               <AutocompleteItem 
@@ -487,7 +511,10 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                         <TableCell>S/. {deuda.totalPagado.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.saldoPendiente.toFixed(2)}</TableCell>
                         <TableCell>
-                          <Button onPress={() => agregarDeudaADetalle(deuda)}>
+                          <Button 
+                            onPress={() => agregarDeudaADetalle(deuda)}
+                            isDisabled={session.user.role === 'USER' && recibo}
+                          >
                             Agregar
                           </Button>
                         </TableCell>
@@ -571,6 +598,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                                 </span>
                               </div>
                             }
+                            isDisabled={session.user.role === 'USER' && recibo}
                           />
                         </TableCell>
                         <TableCell>
@@ -578,6 +606,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                             size="sm" 
                             color="danger"
                             onPress={() => quitarDetalle(index)}
+                            isDisabled={session.user.role === 'USER' && recibo}
                           >
                             Quitar
                           </Button>
@@ -598,20 +627,32 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
           }}>
             Cancelar
           </Button>
-          {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') &&(<Button 
-            type="submit" 
-            color="primary" 
-            isLoading={isSubmitting}
-          >
-            {recibo ? 'Guardar' : 'Guardar e Imprimir'}
-          </Button>)}
-          {session.user.role === 'USER' && !recibo &&(<Button 
-            type="submit" 
-            color="primary" 
-            isLoading={isSubmitting}
-          >
-            {recibo ? 'Guardar' : 'Guardar e Imprimir'}
-          </Button>)}
+          {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+            <Button 
+              type="submit" 
+              color="primary" 
+              isLoading={isSubmitting}
+            >
+              {recibo ? 'Guardar' : 'Guardar e Imprimir'}
+            </Button>
+          )}
+          {session.user.role === 'USER' && !recibo && (
+            <Button 
+              type="submit" 
+              color="primary" 
+              isLoading={isSubmitting}
+            >
+              Guardar e Imprimir
+            </Button>
+          )}
+          {session.user.role === 'USER' && recibo && (
+            <Button 
+              color="primary" 
+              isDisabled
+            >
+              Solo Lectura
+            </Button>
+          )}
         </div>
       </form>
 

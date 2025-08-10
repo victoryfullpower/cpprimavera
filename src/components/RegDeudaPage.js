@@ -103,12 +103,11 @@ export default function RegDeudaPage({ userRole }) {
             { key: "actualizadoPor", label: "Actualizado por" }
         ]
 
-        if (session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') {
-            baseColumns.push({ key: "acciones", label: "Acciones", width: "180px" })
-        }
+        // Todos los roles pueden ver la columna de acciones
+        baseColumns.push({ key: "acciones", label: "Acciones", width: "180px" })
 
         return baseColumns
-    }, [session.user.role])
+    }, [])
 
     // Función para renderizar celdas
     const renderCell = useCallback((item, columnKey) => {
@@ -167,26 +166,17 @@ export default function RegDeudaPage({ userRole }) {
             case "acciones":
                 return (
                     <div className="flex gap-2">
-                        {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
-                            <Button
-                                size="sm"
-                                variant="flat"
-                                color="primary"
-                                onPress={() => initEdit(item)}
-                            >
-                                Editar
-                            </Button>
-                        )}
-                        {session.user.role === 'SUPERADMIN' && (
-                            <Button
-                                size="sm"
-                                variant="flat"
-                                color="danger"
-                                onPress={() => handleDelete(item.idregdeuda_detalle)}
-                            >
-                                Eliminar
-                            </Button>
-                        )}
+                        {/* Botón Editar visible para todos los roles */}
+                        <Button
+                            size="sm"
+                            variant="flat"
+                            color="primary"
+                            onPress={() => initEdit(item)}
+                        >
+                            Editar
+                        </Button>
+                        
+                        {/* Botones de administración solo para ADMIN y SUPERADMIN */}
                         {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
                             <Button
                                 size="sm"
@@ -195,6 +185,17 @@ export default function RegDeudaPage({ userRole }) {
                                 onPress={() => toggleEstado(item.idregdeuda_detalle, item.estado)}
                             >
                                 {item.estado ? "Desactivar" : "Activar"}
+                            </Button>
+                        )}
+                        
+                        {session.user.role === 'SUPERADMIN' && (
+                            <Button
+                                size="sm"
+                                variant="flat"
+                                color="danger"
+                                onPress={() => handleDelete(item.idregdeuda_detalle)}
+                            >
+                                Eliminar
                             </Button>
                         )}
                     </div>
@@ -696,22 +697,18 @@ export default function RegDeudaPage({ userRole }) {
                             Limpiar Filtros
                         </Button>
                     )}
-                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
-                        <>
-                            <Button
-                                color="primary"
-                                onPress={initCreate}
-                            >
-                                Registro Individual
-                            </Button>
-                            <Button
-                                color="secondary"
-                                onPress={initCreateLote}
-                            >
-                                Registro por Lote
-                            </Button>
-                        </>
-                    )}
+                    <Button
+                        color="primary"
+                        onPress={initCreate}
+                    >
+                        Registro Individual
+                    </Button>
+                    <Button
+                        color="secondary"
+                        onPress={initCreateLote}
+                    >
+                        Registro por Lote
+                    </Button>
                 </div>
             </div>
 
@@ -777,7 +774,10 @@ export default function RegDeudaPage({ userRole }) {
                     {(onClose) => (
                         <>
                             <ModalHeader className="flex flex-col gap-1">
-                                {currentDetalle?.idregdeuda_detalle ? 'Editar Detalle de Deuda' : 'Nuevo Detalle de Deuda'}
+                                {currentDetalle?.idregdeuda_detalle 
+                                    ? (session.user.role === 'USER' ? 'Ver Detalle de Deuda (Solo Lectura)' : 'Editar Detalle de Deuda')
+                                    : 'Nuevo Detalle de Deuda'
+                                }
                             </ModalHeader>
                             <Divider />
                             <ModalBody className="py-6 gap-6 min-h-[500px]">
@@ -797,6 +797,7 @@ export default function RegDeudaPage({ userRole }) {
                                             }}
                                             isRequired
                                             allowsCustomValue={false}
+                                            isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                         >
                                             {(concepto) => (
                                                 <AutocompleteItem key={concepto.idconcepto.toString()} textValue={concepto.descripcion}>
@@ -819,6 +820,7 @@ export default function RegDeudaPage({ userRole }) {
                                             }}
                                             isRequired
                                             allowsCustomValue={false}
+                                            isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                         >
                                             {(stand) => (
                                                 <AutocompleteItem key={stand.idstand.toString()} textValue={`${stand.descripcion} - ${stand.client?.nombre || 'Sin cliente'}`}>
@@ -839,6 +841,7 @@ export default function RegDeudaPage({ userRole }) {
                                             step="0.01"
                                             min="0"
                                             isRequired
+                                            isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                         />
 
                                         <Input
@@ -852,6 +855,7 @@ export default function RegDeudaPage({ userRole }) {
                                             startContent={<span className="text-default-400 text-small">S/.</span>}
                                             step="0.01"
                                             min="0"
+                                            isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                         />
                                     </div>
 
@@ -869,6 +873,7 @@ export default function RegDeudaPage({ userRole }) {
                                                 placeholderText="Seleccione fecha"
                                                 showYearDropdown
                                                 dropdownMode="select"
+                                                disabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                             />
                                         </div>
 
@@ -879,6 +884,7 @@ export default function RegDeudaPage({ userRole }) {
                                                     ...currentDetalle,
                                                     estado: value
                                                 })}
+                                                isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                             >
                                                 Estado Activo
                                             </Switch>
@@ -893,15 +899,27 @@ export default function RegDeudaPage({ userRole }) {
                                 <Button color="danger" variant="light" onPress={onClose}>
                                     Cancelar
                                 </Button>
-                                {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                
+                                {/* Mostrar botón de Solo Lectura para USER editando, o botón de guardar para ADMIN/SUPERADMIN */}
+                                {session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle ? (
                                     <Button
                                         color="primary"
-                                        type="submit"
-                                        form="detalle-form"
-                                        isLoading={isSubmitting}
+                                        variant="flat"
+                                        isDisabled
                                     >
-                                        {currentDetalle?.idregdeuda_detalle ? 'Guardar' : 'Crear'}
+                                        Solo Lectura
                                     </Button>
+                                ) : (
+                                    (session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                        <Button
+                                            color="primary"
+                                            type="submit"
+                                            form="detalle-form"
+                                            isLoading={isSubmitting}
+                                        >
+                                            {currentDetalle?.idregdeuda_detalle ? 'Guardar' : 'Crear'}
+                                        </Button>
+                                    )
                                 )}
                             </ModalFooter>
                         </>
@@ -915,7 +933,7 @@ export default function RegDeudaPage({ userRole }) {
                     {(onClose) => (
                         <>
                             <ModalHeader className="flex flex-col gap-1">
-                                Registro de Deudas por Lote
+                                {session.user.role === 'USER' ? 'Ver Registro de Deudas por Lote (Solo Lectura)' : 'Registro de Deudas por Lote'}
                             </ModalHeader>
                             <Divider />
                             <ModalBody className="py-6 gap-4">
@@ -939,6 +957,7 @@ export default function RegDeudaPage({ userRole }) {
                                                     placeholderText="Seleccione una fecha"
                                                     showYearDropdown
                                                     dropdownMode="select"
+                                                    disabled={session.user.role === 'USER'}
                                                 />
 
                                                 <Autocomplete
@@ -952,6 +971,7 @@ export default function RegDeudaPage({ userRole }) {
                                                     })}
                                                     isRequired
                                                     allowsCustomValue={false}
+                                                    isDisabled={session.user.role === 'USER'}
                                                 >
                                                     {(concepto) => (
                                                         <AutocompleteItem key={concepto.idconcepto.toString()} textValue={concepto.descripcion}>
@@ -968,6 +988,7 @@ export default function RegDeudaPage({ userRole }) {
                                                     value={montoGeneral}
                                                     onChange={(e) => handleMontoGeneralChange(e.target.value)}
                                                     startContent={<span className="text-default-400 text-small">S/.</span>}
+                                                    isDisabled={session.user.role === 'USER'}
                                                 />
 
                                                 <Input
@@ -979,6 +1000,7 @@ export default function RegDeudaPage({ userRole }) {
                                                     onChange={(e) => handleMoraGeneralChange(e.target.value)}
                                                     startContent={<span className="text-default-400 text-small">S/.</span>}
                                                     description="Mora que se sumará al monto principal"
+                                                    isDisabled={session.user.role === 'USER'}
                                                 />
                                             </CardBody>
                                         </Card>
@@ -1012,6 +1034,7 @@ export default function RegDeudaPage({ userRole }) {
                                                                                 value={detalle.monto || ''}
                                                                                 onChange={(e) => handleMontoChange(stand.idstand, 'monto', e.target.value)}
                                                                                 startContent={<span className="text-default-400 text-small">S/.</span>}
+                                                                                isDisabled={session.user.role === 'USER'}
                                                                             />
                                                                         </TableCell>
                                                                         <TableCell>
@@ -1022,6 +1045,7 @@ export default function RegDeudaPage({ userRole }) {
                                                                                 value={detalle.mora || ''}
                                                                                 onChange={(e) => handleMontoChange(stand.idstand, 'mora', e.target.value)}
                                                                                 startContent={<span className="text-default-400 text-small">S/.</span>}
+                                                                                isDisabled={session.user.role === 'USER'}
                                                                             />
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
@@ -1043,7 +1067,15 @@ export default function RegDeudaPage({ userRole }) {
                                 <Button color="danger" variant="light" onPress={onClose}>
                                     Cancelar
                                 </Button>
-                                {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                {session.user.role === 'USER' ? (
+                                    <Button
+                                        color="primary"
+                                        variant="flat"
+                                        isDisabled
+                                    >
+                                        Solo Lectura
+                                    </Button>
+                                ) : (
                                     <Button
                                         color="primary"
                                         type="submit"
