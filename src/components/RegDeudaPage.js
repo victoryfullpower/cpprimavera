@@ -933,7 +933,7 @@ export default function RegDeudaPage({ userRole }) {
                     {(onClose) => (
                         <>
                             <ModalHeader className="flex flex-col gap-1">
-                                {session.user.role === 'USER' ? 'Ver Registro de Deudas por Lote (Solo Lectura)' : 'Registro de Deudas por Lote'}
+                                Registro de Deudas por Lote
                             </ModalHeader>
                             <Divider />
                             <ModalBody className="py-6 gap-4">
@@ -957,7 +957,6 @@ export default function RegDeudaPage({ userRole }) {
                                                     placeholderText="Seleccione una fecha"
                                                     showYearDropdown
                                                     dropdownMode="select"
-                                                    disabled={session.user.role === 'USER'}
                                                 />
 
                                                 <Autocomplete
@@ -971,7 +970,6 @@ export default function RegDeudaPage({ userRole }) {
                                                     })}
                                                     isRequired
                                                     allowsCustomValue={false}
-                                                    isDisabled={session.user.role === 'USER'}
                                                 >
                                                     {(concepto) => (
                                                         <AutocompleteItem key={concepto.idconcepto.toString()} textValue={concepto.descripcion}>
@@ -988,7 +986,6 @@ export default function RegDeudaPage({ userRole }) {
                                                     value={montoGeneral}
                                                     onChange={(e) => handleMontoGeneralChange(e.target.value)}
                                                     startContent={<span className="text-default-400 text-small">S/.</span>}
-                                                    isDisabled={session.user.role === 'USER'}
                                                 />
 
                                                 <Input
@@ -1000,7 +997,6 @@ export default function RegDeudaPage({ userRole }) {
                                                     onChange={(e) => handleMoraGeneralChange(e.target.value)}
                                                     startContent={<span className="text-default-400 text-small">S/.</span>}
                                                     description="Mora que se sumará al monto principal"
-                                                    isDisabled={session.user.role === 'USER'}
                                                 />
                                             </CardBody>
                                         </Card>
@@ -1034,7 +1030,6 @@ export default function RegDeudaPage({ userRole }) {
                                                                                 value={detalle.monto || ''}
                                                                                 onChange={(e) => handleMontoChange(stand.idstand, 'monto', e.target.value)}
                                                                                 startContent={<span className="text-default-400 text-small">S/.</span>}
-                                                                                isDisabled={session.user.role === 'USER'}
                                                                             />
                                                                         </TableCell>
                                                                         <TableCell>
@@ -1045,7 +1040,6 @@ export default function RegDeudaPage({ userRole }) {
                                                                                 value={detalle.mora || ''}
                                                                                 onChange={(e) => handleMontoChange(stand.idstand, 'mora', e.target.value)}
                                                                                 startContent={<span className="text-default-400 text-small">S/.</span>}
-                                                                                isDisabled={session.user.role === 'USER'}
                                                                             />
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
@@ -1067,24 +1061,14 @@ export default function RegDeudaPage({ userRole }) {
                                 <Button color="danger" variant="light" onPress={onClose}>
                                     Cancelar
                                 </Button>
-                                {session.user.role === 'USER' ? (
-                                    <Button
-                                        color="primary"
-                                        variant="flat"
-                                        isDisabled
-                                    >
-                                        Solo Lectura
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        color="primary"
-                                        type="submit"
-                                        form="lote-form"
-                                        isLoading={isLoteSubmitting}
-                                    >
-                                        Crear Lote
-                                    </Button>
-                                )}
+                                <Button
+                                    color="primary"
+                                    type="submit"
+                                    form="lote-form"
+                                    isLoading={isLoteSubmitting}
+                                >
+                                    Crear Lote
+                                </Button>
                             </ModalFooter>
                         </>
                     )}
