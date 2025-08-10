@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: "CCPrimavera",
-    script: "npm",
+    script: "./node_modules/next/dist/bin/next",
     args: "start",
     cwd: "D:/SistemaCCP_web/cpprimavera",
     instances: 1,
@@ -19,10 +19,6 @@ module.exports = {
     error_file: "./logs/err.log",
     out_file: "./logs/out.log",
     log_file: "./logs/combined.log",
-    time: true,
-    // Fix for Windows path issues
-    interpreter: "node",
-    // Add environment variables
-    env_file: ".env.local"
+    time: true
   }]
 }
