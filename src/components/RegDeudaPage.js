@@ -702,7 +702,7 @@ export default function RegDeudaPage({ userRole }) {
                                 color="primary"
                                 onPress={initCreate}
                             >
-                                Nuevo Detalle
+                                Registro Individual
                             </Button>
                             <Button
                                 color="secondary"
