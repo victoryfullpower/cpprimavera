@@ -54,7 +54,7 @@ export default function RegDeudaPage({ userRole }) {
     const [stands, setStands] = useState([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState('')
-    const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString())
+    const [yearFilter, setYearFilter] = useState('all')
     const [page, setPage] = useState(1)
     const { isOpen, onOpen, onOpenChange } = useDisclosure()
     const { isOpen: isLoteOpen, onOpen: onLoteOpen, onOpenChange: onLoteOpenChange } = useDisclosure()
@@ -253,7 +253,7 @@ export default function RegDeudaPage({ userRole }) {
         const filtered = detalles.filter(detalle => {
             // Filtro por año
             const detalleYear = new Date(detalle.fechadeudaStand).getFullYear().toString()
-            const yearMatches = yearFilter === '' || detalleYear === yearFilter
+            const yearMatches = yearFilter === 'all' || yearFilter === '' || detalleYear === yearFilter
             
             // Filtro por texto
             const textMatches = 
@@ -604,7 +604,7 @@ export default function RegDeudaPage({ userRole }) {
                                 className="w-32 justify-between"
                                 endContent={<span className="text-default-400">▼</span>}
                             >
-                                {yearFilter || 'Año'}
+                                {yearFilter === 'all' ? 'Todos' : yearFilter || 'Año'}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent 
@@ -633,7 +633,7 @@ export default function RegDeudaPage({ userRole }) {
                                         '--nextui-colors-foreground': 'black'
                                     }}
                                     onClick={() => {
-                                        setYearFilter('')
+                                        setYearFilter('all')
                                         setPage(1)
                                         onYearOpenChange()
                                     }}
@@ -683,13 +683,13 @@ export default function RegDeudaPage({ userRole }) {
                         isClearable
                         onClear={() => setFilter('')}
                     />
-                    {(filter || (yearFilter && yearFilter !== new Date().getFullYear().toString())) && (
+                    {(filter || (yearFilter && yearFilter !== 'all')) && (
                         <Button
                             color="default"
                             variant="flat"
                             onPress={() => {
                                 setFilter('')
-                                setYearFilter(new Date().getFullYear().toString())
+                                setYearFilter('all')
                                 setPage(1)
                             }}
                         >
