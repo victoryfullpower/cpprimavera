@@ -36,9 +36,10 @@ export async function POST(req) {
               concepto: true,
               detalleDeuda: {
                 include: {
-                  cabecera: {
+                  concepto: true,
+                  stand: {
                     include: {
-                      concepto: true
+                      client: true
                     }
                   }
                 }

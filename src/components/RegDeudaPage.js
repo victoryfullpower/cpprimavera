@@ -24,7 +24,13 @@ import {
     Card,
     CardBody,
     CardHeader,
-    Tooltip
+    Tooltip,
+    Switch,
+    Autocomplete,
+    AutocompleteItem,
+    Popover,
+    PopoverTrigger,
+    PopoverContent
 } from '@nextui-org/react'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -38,77 +44,101 @@ import { ensureValidDate } from '@/utils/date'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { useSession } from '@/context/SessionContext'
+
 export default function RegDeudaPage({ userRole }) {
-    const isAdmin = userRole === 'ADMIN'
     const session = useSession()
+    
     // Estados
-    const [registros, setRegistros] = useState([])
+    const [detalles, setDetalles] = useState([])
     const [conceptos, setConceptos] = useState([])
     const [stands, setStands] = useState([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState('')
+    const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString())
     const [page, setPage] = useState(1)
     const { isOpen, onOpen, onOpenChange } = useDisclosure()
-    const [currentRegistro, setCurrentRegistro] = useState({
-        fechadeuda: new Date(),
+    const { isOpen: isLoteOpen, onOpen: onLoteOpen, onOpenChange: onLoteOpenChange } = useDisclosure()
+    const { isOpen: isYearOpen, onOpen: onYearOpen, onOpenChange: onYearOpenChange } = useDisclosure()
+    const [currentDetalle, setCurrentDetalle] = useState({
         idconcepto_deuda: '',
+        idstand: '',
+        fechadeudaStand: new Date(),
+        monto: 0,
+        mora: 0,
+        estado: true
+    })
+    const [loteData, setLoteData] = useState({
+        fechadeudaStand: new Date(),
+        idconcepto_deuda: '',
+        montoGeneral: 0,
+        moraGeneral: 0,
         detalles: []
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [sortField, setSortField] = useState('fechadeuda')
+    const [isLoteSubmitting, setIsLoteSubmitting] = useState(false)
+    const [sortField, setSortField] = useState('createdAt')
     const [sortDirection, setSortDirection] = useState('desc')
     const rowsPerPage = 10
+
+    // Generar años disponibles para el filtro (desde 2000 hasta 2050)
+    const availableYears = useMemo(() => {
+        const years = []
+        for (let year = 2000; year <= 2050; year++) {
+            years.push(year.toString())
+        }
+        return years
+    }, [])
 
     // Definir columnas dinámicamente según el rol
     const columns = useMemo(() => {
         const baseColumns = [
-            { key: "fechadeuda", label: "Fecha", width: "120px", allowsSorting: true },
+            { key: "fechadeudaStand", label: "Fecha", width: "120px", allowsSorting: true },
             { key: "concepto", label: "Concepto", allowsSorting: true },
+            { key: "stand", label: "Stand", allowsSorting: true },
+            { key: "monto", label: "Monto", width: "120px" },
+            { key: "mora", label: "Mora", width: "120px" },
             { key: "total", label: "Total", width: "120px" },
             { key: "estado", label: "Estado", width: "100px" },
             { key: "creadoPor", label: "Creado por" },
             { key: "actualizadoPor", label: "Actualizado por" }
         ]
 
-      
+        if (session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') {
             baseColumns.push({ key: "acciones", label: "Acciones", width: "180px" })
-        
+        }
 
         return baseColumns
-    }, [isAdmin])
+    }, [session.user.role])
 
     // Función para renderizar celdas
     const renderCell = useCallback((item, columnKey) => {
         switch (columnKey) {
-            case "fechadeuda":
-                return format(new Date(item.fechadeuda), 'dd/MM/yyyy', { locale: es })
+            case "fechadeudaStand":
+                return format(new Date(item.fechadeudaStand), 'dd/MM/yyyy', { locale: es })
             case "concepto":
-                return item.concepto.descripcion
-            // En la función renderCell, modificar el caso "total":
-            case "total":
+                return item.concepto?.descripcion || 'N/A'
+            case "stand":
+                return `${item.stand?.descripcion || 'N/A'} - ${item.stand?.client?.nombre || 'Sin cliente'}`
+            case "monto":
                 return (
-                    <div className="flex items-center gap-1">
-                        <Chip color="success" variant="flat">
-                            S/. {formatDecimal(item.total)}
-                        </Chip>
-                        {item.detalles.some(d => d.mora > 0) && (
-                            <Tooltip
-                                content="Este registro incluye mora"
-                                placement="top"
-                                color="warning"
-                                delay={300}
-                                closeDelay={100}
-                                classNames={{
-                                    base: "max-w-[200px]",
-                                    content: "text-white"
-                                }}
-                            >
-                                <span className="cursor-pointer">
-                                    <FaInfoCircle className="text-yellow-500" />
-                                </span>
-                            </Tooltip>
-                        )}
-                    </div>
+                    <Chip color="primary" variant="flat">
+                        S/. {formatDecimal(item.monto)}
+                    </Chip>
+                )
+            case "mora":
+                return item.mora > 0 ? (
+                    <Chip color="warning" variant="flat">
+                        S/. {formatDecimal(item.mora)}
+                    </Chip>
+                ) : (
+                    <span className="text-gray-400">-</span>
+                )
+            case "total":
+                const total = Number(item.monto) + Number(item.mora || 0)
+                return (
+                    <Chip color="success" variant="flat">
+                        S/. {formatDecimal(total)}
+                    </Chip>
                 )
             case "estado":
                 return (
@@ -121,7 +151,7 @@ export default function RegDeudaPage({ userRole }) {
                     <>
                         {item.createdBy?.username || 'N/A'}
                         <p className="text-xs text-gray-400">
-                            {format(new Date(item.createdAt), 'dd/MM/yyyy HH:mm', { locale: es })}
+                            {new Date(item.createdAt).toLocaleDateString()}
                         </p>
                     </>
                 )
@@ -130,69 +160,72 @@ export default function RegDeudaPage({ userRole }) {
                     <>
                         {item.updatedBy?.username || 'N/A'}
                         <p className="text-xs text-gray-400">
-                            {format(new Date(item.updatedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
+                            {new Date(item.updatedAt).toLocaleDateString()}
                         </p>
                     </>
                 )
             case "acciones":
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            size="sm"
-                            variant="flat"
-                            color="primary"
-                            onPress={() => initEdit(item)}
-                        >
-                            Editar
-                        </Button>
+                        {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                            <Button
+                                size="sm"
+                                variant="flat"
+                                color="primary"
+                                onPress={() => initEdit(item)}
+                            >
+                                Editar
+                            </Button>
+                        )}
                         {session.user.role === 'SUPERADMIN' && (
                             <Button
                                 size="sm"
                                 variant="flat"
                                 color="danger"
-                                onPress={() => handleDelete(item.idregdeuda)}
+                                onPress={() => handleDelete(item.idregdeuda_detalle)}
                             >
                                 Eliminar
                             </Button>
                         )}
-                          {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                        {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
                             <Button
                                 size="sm"
                                 variant="flat"
                                 color={item.estado ? "warning" : "success"}
-                                onPress={() => toggleEstado(item.idregdeuda, item.estado)}
+                                onPress={() => toggleEstado(item.idregdeuda_detalle, item.estado)}
                             >
                                 {item.estado ? "Desactivar" : "Activar"}
                             </Button>
-                          )}
+                        )}
                     </div>
-                ) 
+                )
             default:
                 return null
         }
-    }, [isAdmin])
+    }, [session.user.role])
 
     // Cargar datos
     const fetchData = async () => {
         setLoading(true)
         try {
-            const [registrosRes, conceptosRes, standsRes] = await Promise.all([
-                fetch('/api/reg-deuda'),
+            const [detallesRes, conceptosRes, standsRes] = await Promise.all([
+                fetch('/api/reg-deuda-detalle'),
                 fetch('/api/conceptos-deuda'),
                 fetch('/api/stands?includeClient=true')
             ])
 
-            if (!registrosRes.ok) throw new Error('Error cargando registros')
+            if (!detallesRes.ok) throw new Error('Error cargando detalles de deuda')
             if (!conceptosRes.ok) throw new Error('Error cargando conceptos')
             if (!standsRes.ok) throw new Error('Error cargando stands')
 
-            const registrosData = await registrosRes.json()
+            const detallesData = await detallesRes.json()
             const conceptosData = await conceptosRes.json()
             const standsData = await standsRes.json()
 
-            setRegistros(registrosData)
+            setDetalles(detallesData)
             setConceptos(conceptosData.filter(c => c.estado && c.deuda))
             setStands(standsData)
+            console.log('Stands cargados:', standsData)
         } catch (error) {
             toast.error(error.message)
             console.error('Error:', error)
@@ -217,24 +250,40 @@ export default function RegDeudaPage({ userRole }) {
 
     // Filtrar, ordenar y paginar
     const filteredItems = useMemo(() => {
-        const filtered = registros.filter(registro =>
-            registro.concepto.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
-            format(new Date(registro.fechadeuda), 'dd/MM/yyyy', { locale: es }).includes(filter.toLowerCase())
-        )
+        const filtered = detalles.filter(detalle => {
+            // Filtro por año
+            const detalleYear = new Date(detalle.fechadeudaStand).getFullYear().toString()
+            const yearMatches = yearFilter === '' || detalleYear === yearFilter
+            
+            // Filtro por texto
+            const textMatches = 
+                detalle.concepto?.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
+                detalle.stand?.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
+                detalle.stand?.client?.nombre.toLowerCase().includes(filter.toLowerCase()) ||
+                format(new Date(detalle.fechadeudaStand), 'dd/MM/yyyy', { locale: es }).includes(filter.toLowerCase())
+            
+            return yearMatches && textMatches
+        })
 
         // Ordenar los resultados
         return filtered.sort((a, b) => {
             let comparison = 0
 
-            if (sortField === 'fechadeuda') {
-                comparison = new Date(a.fechadeuda) - new Date(b.fechadeuda)
+            if (sortField === 'fechadeudaStand') {
+                comparison = new Date(a.fechadeudaStand) - new Date(b.fechadeudaStand)
             } else if (sortField === 'concepto') {
-                comparison = a.concepto.descripcion.localeCompare(b.concepto.descripcion)
+                comparison = (a.concepto?.descripcion || '').localeCompare(b.concepto?.descripcion || '')
+            } else if (sortField === 'stand') {
+                comparison = (a.stand?.descripcion || '').localeCompare(b.stand?.descripcion || '')
+            } else if (sortField === 'monto') {
+                comparison = Number(a.monto) - Number(b.monto)
+            } else if (sortField === 'createdAt') {
+                comparison = new Date(a.createdAt) - new Date(b.createdAt)
             }
 
             return sortDirection === 'asc' ? comparison : -comparison
         })
-    }, [registros, filter, sortField, sortDirection])
+    }, [detalles, filter, yearFilter, sortField, sortDirection])
 
     const paginatedItems = useMemo(() =>
         filteredItems.slice(
@@ -246,12 +295,12 @@ export default function RegDeudaPage({ userRole }) {
 
     // Operaciones CRUD
     const handleDelete = async (id) => {
-        if (!confirm('¿Estás seguro de eliminar este registro?')) return
+        if (!confirm('¿Estás seguro de eliminar este detalle de deuda?')) return
 
         try {
-            console.log('Intentando eliminar reg-deuda con ID:', id)
+            console.log('Intentando eliminar detalle con ID:', id)
             
-            const res = await fetch(`/api/reg-deuda/${id}`, { method: 'DELETE' })
+            const res = await fetch(`/api/reg-deuda-detalle/${id}`, { method: 'DELETE' })
             console.log('Respuesta del servidor:', res.status, res.statusText)
             
             if (!res.ok) {
@@ -260,20 +309,19 @@ export default function RegDeudaPage({ userRole }) {
                 throw new Error(errorText)
             }
 
-            // Solo actualizar el estado local si la eliminación fue exitosa
-            setRegistros(prev => prev.filter(r => r.idregdeuda !== id))
-            toast.success('Registro eliminado correctamente')
+            setDetalles(prev => prev.filter(d => d.idregdeuda_detalle !== id))
+            toast.success('Detalle de deuda eliminado correctamente')
         } catch (error) {
             console.error('Error completo:', error)
-            toast.error('Error al eliminar registro: ' + error.message)
+            toast.error('Error al eliminar detalle: ' + error.message)
         }
     }
 
-    const toggleEstado = async (idregdeuda, currentEstado) => {
+    const toggleEstado = async (id, currentEstado) => {
         try {
             const newEstado = !currentEstado
 
-            const res = await fetch(`/api/reg-deuda/${idregdeuda}`, {
+            const res = await fetch(`/api/reg-deuda-detalle/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ estado: newEstado })
@@ -283,12 +331,12 @@ export default function RegDeudaPage({ userRole }) {
 
             const result = await res.json()
 
-            setRegistros(prev => prev.map(r =>
-                r.idregdeuda === idregdeuda ? {
-                    ...r,
+            setDetalles(prev => prev.map(d =>
+                d.idregdeuda_detalle === id ? {
+                    ...d,
                     estado: newEstado,
                     updatedBy: result.updatedBy
-                } : r
+                } : d
             ))
 
             toast.success(`Estado cambiado a ${newEstado ? 'Activo' : 'Inactivo'}`)
@@ -298,9 +346,97 @@ export default function RegDeudaPage({ userRole }) {
         }
     }
 
-    // Manejar cambios en montos y mora
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        setIsSubmitting(true)
+
+        try {
+            const isEditing = !!currentDetalle?.idregdeuda_detalle
+            const method = isEditing ? 'PUT' : 'POST'
+            const url = isEditing
+                ? `/api/reg-deuda-detalle/${currentDetalle.idregdeuda_detalle}`
+                : '/api/reg-deuda-detalle'
+
+            const detalleData = {
+                idconcepto_deuda: parseInt(currentDetalle.idconcepto_deuda),
+                idstand: parseInt(currentDetalle.idstand),
+                fechadeudaStand: currentDetalle.fechadeudaStand,
+                monto: parseFloat(currentDetalle.monto),
+                mora: parseFloat(currentDetalle.mora || 0),
+                estado: currentDetalle.estado
+            }
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(detalleData)
+            })
+
+            if (!res.ok) throw new Error(await res.text())
+
+            const result = await res.json()
+
+            setDetalles(prev => {
+                if (isEditing) {
+                    return prev.map(d => d.idregdeuda_detalle === result.idregdeuda_detalle ? result : d)
+                } else {
+                    return [...prev, result]
+                }
+            })
+
+            toast.success(
+                isEditing
+                    ? 'Detalle de deuda actualizado correctamente'
+                    : 'Detalle de deuda creado correctamente'
+            )
+            onOpenChange()
+        } catch (error) {
+            toast.error('Error al guardar los cambios')
+            console.error('Error:', error)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const initEdit = (detalle) => {
+        setCurrentDetalle({
+            idregdeuda_detalle: detalle.idregdeuda_detalle,
+            idconcepto_deuda: parseInt(detalle.idconcepto_deuda),
+            idstand: parseInt(detalle.idstand),
+            fechadeudaStand: new Date(detalle.fechadeudaStand),
+            monto: parseFloat(detalle.monto),
+            mora: parseFloat(detalle.mora || 0),
+            estado: Boolean(detalle.estado)
+        })
+        onOpen()
+    }
+
+    const initCreate = () => {
+        setCurrentDetalle({
+            idconcepto_deuda: '',
+            idstand: '',
+            fechadeudaStand: new Date(),
+            monto: 0,
+            mora: 0,
+            estado: true
+        })
+        onOpen()
+    }
+
+    const initCreateLote = () => {
+        setLoteData({
+            fechadeudaStand: new Date(),
+            idconcepto_deuda: '',
+            montoGeneral: 0,
+            moraGeneral: 0,
+            detalles: []
+        })
+        onLoteOpen()
+    }
+
+    // Manejar cambios en montos y mora del lote
     const handleMontoChange = (idstand, field, value) => {
-        setCurrentRegistro(prev => {
+        setLoteData(prev => {
             const detalles = [...prev.detalles]
             const index = detalles.findIndex(d => d.idstand === idstand)
 
@@ -328,7 +464,7 @@ export default function RegDeudaPage({ userRole }) {
     // Replicar monto general
     const handleMontoGeneralChange = (value) => {
         if (value === '') {
-            setCurrentRegistro(prev => ({
+            setLoteData(prev => ({
                 ...prev,
                 detalles: []
             }))
@@ -339,7 +475,7 @@ export default function RegDeudaPage({ userRole }) {
         const montoRedondeado = parseFloat(monto.toFixed(4))
 
         if (!isNaN(montoRedondeado)) {
-            setCurrentRegistro(prev => ({
+            setLoteData(prev => ({
                 ...prev,
                 detalles: stands.map(stand => ({
                     idstand: stand.idstand,
@@ -353,7 +489,7 @@ export default function RegDeudaPage({ userRole }) {
     // Replicar mora general
     const handleMoraGeneralChange = (value) => {
         if (value === '') {
-            setCurrentRegistro(prev => ({
+            setLoteData(prev => ({
                 ...prev,
                 detalles: prev.detalles.map(d => ({
                     ...d,
@@ -367,7 +503,7 @@ export default function RegDeudaPage({ userRole }) {
         const moraRedondeada = parseFloat(mora.toFixed(4))
 
         if (!isNaN(moraRedondeada)) {
-            setCurrentRegistro(prev => ({
+            setLoteData(prev => ({
                 ...prev,
                 detalles: prev.detalles.length > 0
                     ? prev.detalles.map(d => ({
@@ -385,84 +521,59 @@ export default function RegDeudaPage({ userRole }) {
 
     // Calcular monto general
     const montoGeneral = useMemo(() => {
-        if (currentRegistro.detalles.length === 0) return ''
-        const firstMonto = currentRegistro.detalles[0].monto
-        const allEqual = currentRegistro.detalles.every(d => d.monto === firstMonto)
+        if (loteData.detalles.length === 0) return ''
+        const firstMonto = loteData.detalles[0].monto
+        const allEqual = loteData.detalles.every(d => d.monto === firstMonto)
         return allEqual ? firstMonto : ''
-    }, [currentRegistro.detalles])
+    }, [loteData.detalles])
 
     // Calcular mora general
     const moraGeneral = useMemo(() => {
-        if (currentRegistro.detalles.length === 0) return ''
-        const firstMora = currentRegistro.detalles[0].mora || 0
-        const allEqual = currentRegistro.detalles.every(d => (d.mora || 0) === firstMora)
+        if (loteData.detalles.length === 0) return ''
+        const firstMora = loteData.detalles[0].mora || 0
+        const allEqual = loteData.detalles.every(d => (d.mora || 0) === firstMora)
         return allEqual ? firstMora : ''
-    }, [currentRegistro.detalles])
+    }, [loteData.detalles])
 
-    const handleSubmit = async (e) => {
+    const handleSubmitLote = async (e) => {
         e.preventDefault()
-        setIsSubmitting(true)
+        setIsLoteSubmitting(true)
 
         try {
-            const isEditing = !!currentRegistro?.idregdeuda
-            const method = isEditing ? 'PUT' : 'POST'
-            const url = isEditing
-                ? `/api/reg-deuda/${currentRegistro.idregdeuda}`
-                : '/api/reg-deuda'
+            const detallesValidos = loteData.detalles.filter(d => d.monto > 0 || d.mora > 0)
 
-            const detallesValidos = currentRegistro.detalles.map(d => ({
-                idstand: d.idstand,
-                monto: parseFloat(d.monto || 0),
-                mora: parseFloat(d.mora || 0)
-            }))
+            if (detallesValidos.length === 0) {
+                toast.error('Debe ingresar al menos un monto o mora')
+                return
+            }
 
-            const fechaValida = currentRegistro.fechadeuda instanceof Date
-                ? currentRegistro.fechadeuda.toISOString()
-                : new Date().toISOString()
-
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fechadeuda: fechaValida,
-                    idconcepto_deuda: currentRegistro.idconcepto_deuda,
-                    detalles: detallesValidos
+            // Crear múltiples detalles de deuda
+            const promises = detallesValidos.map(detalle => 
+                fetch('/api/reg-deuda-detalle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        idconcepto_deuda: parseInt(loteData.idconcepto_deuda),
+                        idstand: parseInt(detalle.idstand),
+                        fechadeudaStand: loteData.fechadeudaStand,
+                        monto: parseFloat(detalle.monto || 0),
+                        mora: parseFloat(detalle.mora || 0),
+                        estado: true
+                    })
                 })
-            })
-
-            if (!res.ok) throw new Error(await res.text())
-
-            const result = await res.json()
-            setRegistros(prev => isEditing
-                ? prev.map(r => r.idregdeuda === result.idregdeuda ? result : r)
-                : [...prev, result]
             )
 
-            toast.success(isEditing ? 'Registro actualizado' : 'Registro creado')
-            onOpenChange()
+            await Promise.all(promises)
+
+            toast.success(`${detallesValidos.length} detalles de deuda creados correctamente`)
+            onLoteOpenChange()
+            fetchData() // Recargar datos
         } catch (error) {
-            toast.error('Error al guardar')
+            toast.error('Error al crear los detalles de deuda')
             console.error('Error:', error)
         } finally {
-            setIsSubmitting(false)
+            setIsLoteSubmitting(false)
         }
-    }
-
-    const initEdit = (registro) => {
-        const fechaDeuda = new Date(registro.fechadeuda)
-        fechaDeuda.setHours(12, 0, 0, 0)
-
-        setCurrentRegistro({
-            idregdeuda: registro.idregdeuda,
-            fechadeuda: fechaDeuda,
-            idconcepto_deuda: registro.idconcepto_deuda,
-            detalles: registro.detalles.map(d => ({
-                idstand: d.idstand,
-                monto: d.monto,
-                mora: d.mora || 0
-            }))
-        })
-        onOpen()
     }
 
     if (loading) {
@@ -474,42 +585,138 @@ export default function RegDeudaPage({ userRole }) {
     }
 
     return (
-        <div className="p-4 max-w-6xl mx-auto">
+        <div className="p-4 max-w-7xl mx-auto">
             <ToastContainer position="bottom-right" />
 
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-white">Registros de Deuda</h1>
+                <div>
+                    <h1 className="text-2xl font-bold text-white">Gestión de Deudas por Stand</h1>
+                    <p className="text-sm text-gray-400 mt-1">
+                        Mostrando {filteredItems.length} de {detalles.length} registros
+                        {yearFilter && yearFilter !== '' && ` (Filtrado por año ${yearFilter})`}
+                    </p>
+                </div>
                 <div className="flex gap-3">
+                    <Popover className='bg-white' isOpen={isYearOpen} onOpenChange={onYearOpenChange} placement="bottom-start">
+                        <PopoverTrigger className='bg-white'>
+                            <Button
+                                variant="bordered"
+                                className="w-32 justify-between"
+                                endContent={<span className="text-default-400">▼</span>}
+                            >
+                                {yearFilter || 'Año'}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent 
+                            className="w-32 p-0" 
+                            style={{ 
+                                backgroundColor: 'white',
+                                color: 'black',
+                                '--nextui-colors-background': 'white',
+                                '--nextui-colors-foreground': 'black'
+                            }}
+                        >
+                            <div 
+                                className="max-h-[300px] overflow-hidden" 
+                                style={{ 
+                                    backgroundColor: 'white',
+                                    '--nextui-colors-background': 'white'
+                                }}
+                            >
+                                {/* Opción "Todos" fija en la parte superior */}
+                                <div 
+                                    className="px-3 py-2 text-sm font-semibold cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200"
+                                    style={{ 
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        '--nextui-colors-background': 'white',
+                                        '--nextui-colors-foreground': 'black'
+                                    }}
+                                    onClick={() => {
+                                        setYearFilter('')
+                                        setPage(1)
+                                        onYearOpenChange()
+                                    }}
+                                >
+                                    Todos
+                                </div>
+                                
+                                {/* Lista scrolleable de años */}
+                                <div 
+                                    className="max-h-[250px] overflow-y-auto" 
+                                    style={{ 
+                                        backgroundColor: 'white',
+                                        '--nextui-colors-background': 'white'
+                                    }}
+                                >
+                                    {availableYears.map((year) => (
+                                        <div
+                                            key={year}
+                                            className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
+                                            style={{ 
+                                                backgroundColor: 'white',
+                                                color: 'black',
+                                                '--nextui-colors-background': 'white',
+                                                '--nextui-colors-foreground': 'black'
+                                            }}
+                                            onClick={() => {
+                                                setYearFilter(year)
+                                                setPage(1)
+                                                onYearOpenChange()
+                                            }}
+                                        >
+                                            {year}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     <Input
-                        placeholder="Filtrar por concepto o fecha..."
+                        placeholder="Filtrar por concepto, stand, cliente o fecha..."
                         value={filter}
                         onChange={(e) => {
                             setFilter(e.target.value)
                             setPage(1)
                         }}
-                        className="w-64"
+                        className="w-80"
                         isClearable
                         onClear={() => setFilter('')}
                     />
-
-                    <Button
-                        color="primary"
-                        onPress={() => {
-                            setCurrentRegistro({
-                                fechadeuda: new Date(),
-                                idconcepto_deuda: '',
-                                detalles: []
-                            })
-                            onOpen()
-                        }}
-                    >
-                        Nuevo Registro
-                    </Button>
+                    {(filter || (yearFilter && yearFilter !== new Date().getFullYear().toString())) && (
+                        <Button
+                            color="default"
+                            variant="flat"
+                            onPress={() => {
+                                setFilter('')
+                                setYearFilter(new Date().getFullYear().toString())
+                                setPage(1)
+                            }}
+                        >
+                            Limpiar Filtros
+                        </Button>
+                    )}
+                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                        <>
+                            <Button
+                                color="primary"
+                                onPress={initCreate}
+                            >
+                                Nuevo Detalle
+                            </Button>
+                            <Button
+                                color="secondary"
+                                onPress={initCreateLote}
+                            >
+                                Registro por Lote
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
             <Table
-                aria-label="Tabla de registros de deuda"
+                aria-label="Tabla de detalles de deuda"
                 bottomContent={
                     <div className="flex w-full justify-center">
                         <Pagination
@@ -547,44 +754,184 @@ export default function RegDeudaPage({ userRole }) {
                         </TableColumn>
                     )}
                 </TableHeader>
-                <TableBody items={paginatedItems}>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
                     {(item) => (
-                        <TableRow key={item.idregdeuda}>
-                            {(columnKey) => (
-                                <TableCell>{renderCell(item, columnKey)}</TableCell>
-                            )}
+                        <TableRow key={item.idregdeuda_detalle}>
+                            {columns.map((column) => (
+                                <TableCell key={column.key}>
+                                    {renderCell(item, column.key)}
+                                </TableCell>
+                            ))}
                         </TableRow>
                     )}
                 </TableBody>
             </Table>
 
-            <Modal
-                isOpen={isOpen}
-                onOpenChange={onOpenChange}
-                size="5xl"
-                scrollBehavior="inside"
-            >
+            {/* Modal para crear/editar */}
+            <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="3xl" scrollBehavior="inside">
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader className="flex flex-col gap-1">
+                                {currentDetalle?.idregdeuda_detalle ? 'Editar Detalle de Deuda' : 'Nuevo Detalle de Deuda'}
+                            </ModalHeader>
+                            <Divider />
+                            <ModalBody className="py-6 gap-6 min-h-[500px]">
+                                <form id="detalle-form" onSubmit={handleSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Autocomplete
+                                            label="Concepto de Deuda"
+                                            placeholder="Seleccione un concepto..."
+                                            defaultItems={conceptos}
+                                            selectedKey={currentDetalle.idconcepto_deuda ? currentDetalle.idconcepto_deuda.toString() : null}
+                                            onSelectionChange={(key) => {
+                                                console.log('Concepto seleccionado:', key);
+                                                setCurrentDetalle(prev => ({
+                                                    ...prev,
+                                                    idconcepto_deuda: key ? parseInt(key) : ''
+                                                }));
+                                            }}
+                                            isRequired
+                                            allowsCustomValue={false}
+                                        >
+                                            {(concepto) => (
+                                                <AutocompleteItem key={concepto.idconcepto.toString()} textValue={concepto.descripcion}>
+                                                    {concepto.descripcion}
+                                                </AutocompleteItem>
+                                            )}
+                                        </Autocomplete>
+
+                                        <Autocomplete
+                                            label="Stand"
+                                            placeholder="Buscar stand..."
+                                            defaultItems={stands}
+                                            selectedKey={currentDetalle.idstand ? currentDetalle.idstand.toString() : null}
+                                            onSelectionChange={(key) => {
+                                                console.log('Stand seleccionado:', key);
+                                                setCurrentDetalle(prev => ({
+                                                    ...prev,
+                                                    idstand: key ? parseInt(key) : ''
+                                                }));
+                                            }}
+                                            isRequired
+                                            allowsCustomValue={false}
+                                        >
+                                            {(stand) => (
+                                                <AutocompleteItem key={stand.idstand.toString()} textValue={`${stand.descripcion} - ${stand.client?.nombre || 'Sin cliente'}`}>
+                                                    {stand.descripcion} - {stand.client?.nombre || 'Sin cliente'}
+                                                </AutocompleteItem>
+                                            )}
+                                        </Autocomplete>
+
+                                        <Input
+                                            type="number"
+                                            label="Monto"
+                                            value={currentDetalle.monto}
+                                            onChange={(e) => setCurrentDetalle({
+                                                ...currentDetalle,
+                                                monto: parseFloat(e.target.value) || 0
+                                            })}
+                                            startContent={<span className="text-default-400 text-small">S/.</span>}
+                                            step="0.01"
+                                            min="0"
+                                            isRequired
+                                        />
+
+                                        <Input
+                                            type="number"
+                                            label="Mora (Opcional)"
+                                            value={currentDetalle.mora}
+                                            onChange={(e) => setCurrentDetalle({
+                                                ...currentDetalle,
+                                                mora: parseFloat(e.target.value) || 0
+                                            })}
+                                            startContent={<span className="text-default-400 text-small">S/.</span>}
+                                            step="0.01"
+                                            min="0"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Fecha de Deuda</label>
+                                            <DatePicker
+                                                selected={currentDetalle.fechadeudaStand}
+                                                onChange={(date) => setCurrentDetalle({
+                                                    ...currentDetalle,
+                                                    fechadeudaStand: date
+                                                })}
+                                                dateFormat="dd/MM/yyyy"
+                                                className="w-full p-3 border rounded-lg"
+                                                placeholderText="Seleccione fecha"
+                                                showYearDropdown
+                                                dropdownMode="select"
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-4 space-y-2">
+                                            <Switch
+                                                isSelected={currentDetalle.estado}
+                                                onValueChange={(value) => setCurrentDetalle({
+                                                    ...currentDetalle,
+                                                    estado: value
+                                                })}
+                                            >
+                                                Estado Activo
+                                            </Switch>
+
+
+                                        </div>
+                                    </div>
+                                </form>
+                            </ModalBody>
+                            <Divider />
+                            <ModalFooter>
+                                <Button color="danger" variant="light" onPress={onClose}>
+                                    Cancelar
+                                </Button>
+                                {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                    <Button
+                                        color="primary"
+                                        type="submit"
+                                        form="detalle-form"
+                                        isLoading={isSubmitting}
+                                    >
+                                        {currentDetalle?.idregdeuda_detalle ? 'Guardar' : 'Crear'}
+                                    </Button>
+                                )}
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+
+            {/* Modal para registro por lote */}
+            <Modal isOpen={isLoteOpen} onOpenChange={onLoteOpenChange} size="5xl" scrollBehavior="inside">
                 <ModalContent className="h-[95vh]" style={{ maxWidth: "90rem", justifyContent: "center" }}>
                     {(onClose) => (
                         <>
                             <ModalHeader className="flex flex-col gap-1">
-                                {currentRegistro?.idregdeuda ? 'Editar Registro' : 'Nuevo Registro'}
+                                Registro de Deudas por Lote
                             </ModalHeader>
                             <Divider />
                             <ModalBody className="py-6 gap-4">
-                                <form id="registro-form" onSubmit={handleSubmit} className="space-y-6">
+                                <form id="lote-form" onSubmit={handleSubmitLote} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <Card>
                                             <CardHeader className="font-bold">Cabecera</CardHeader>
                                             <CardBody className="space-y-4">
                                                 <DatePicker
-                                                    selected={ensureValidDate(currentRegistro.fechadeuda)}
+                                                    selected={loteData.fechadeudaStand}
                                                     onChange={(date) => {
                                                         const adjustedDate = new Date(date)
                                                         adjustedDate.setHours(12, 0, 0, 0)
-                                                        setCurrentRegistro({
-                                                            ...currentRegistro,
-                                                            fechadeuda: adjustedDate
+                                                        setLoteData({
+                                                            ...loteData,
+                                                            fechadeudaStand: adjustedDate
                                                         })
                                                     }}
                                                     dateFormat="dd/MM/yyyy"
@@ -594,25 +941,24 @@ export default function RegDeudaPage({ userRole }) {
                                                     dropdownMode="select"
                                                 />
 
-                                                <Select
+                                                <Autocomplete
                                                     label="Concepto"
                                                     placeholder="Seleccione un concepto"
-                                                    selectedKeys={currentRegistro.idconcepto_deuda ? [currentRegistro.idconcepto_deuda.toString()] : []}
-                                                    onChange={(e) => setCurrentRegistro({
-                                                        ...currentRegistro,
-                                                        idconcepto_deuda: e.target.value ? parseInt(e.target.value) : ''
+                                                    defaultItems={conceptos}
+                                                    selectedKey={loteData.idconcepto_deuda ? loteData.idconcepto_deuda.toString() : null}
+                                                    onSelectionChange={(key) => setLoteData({
+                                                        ...loteData,
+                                                        idconcepto_deuda: key ? parseInt(key) : ''
                                                     })}
                                                     isRequired
+                                                    allowsCustomValue={false}
                                                 >
-                                                    {conceptos.map(concepto => (
-                                                        <SelectItem
-                                                            key={concepto.idconcepto.toString()}
-                                                            value={concepto.idconcepto.toString()}
-                                                        >
+                                                    {(concepto) => (
+                                                        <AutocompleteItem key={concepto.idconcepto.toString()} textValue={concepto.descripcion}>
                                                             {concepto.descripcion}
-                                                        </SelectItem>
-                                                    ))}
-                                                </Select>
+                                                        </AutocompleteItem>
+                                                    )}
+                                                </Autocomplete>
 
                                                 <Input
                                                     label="Monto General (S/.)"
@@ -638,7 +984,7 @@ export default function RegDeudaPage({ userRole }) {
                                         </Card>
 
                                         <Card>
-                                            <CardHeader className="font-bold">Detalle de Deuda</CardHeader>
+                                            <CardHeader className="font-bold">Detalle de Deuda por Stand</CardHeader>
                                             <CardBody>
                                                 <div className="overflow-auto max-h-96">
                                                     <Table aria-label="Tabla de detalles">
@@ -651,7 +997,7 @@ export default function RegDeudaPage({ userRole }) {
                                                         </TableHeader>
                                                         <TableBody>
                                                             {stands.map(stand => {
-                                                                const detalle = currentRegistro.detalles.find(d => d.idstand === stand.idstand) || {}
+                                                                const detalle = loteData.detalles.find(d => d.idstand === stand.idstand) || {}
                                                                 const total = (parseFloat(detalle.monto || 0) + parseFloat(detalle.mora || 0)).toFixed(4)
 
                                                                 return (
@@ -697,24 +1043,16 @@ export default function RegDeudaPage({ userRole }) {
                                 <Button color="danger" variant="light" onPress={onClose}>
                                     Cancelar
                                 </Button>
-                                {session.user.role === 'ADMIN' && ( <Button
-                                    color="primary"
-                                    type="submit"
-                                    form="registro-form"
-                                    isLoading={isSubmitting}
-                                >
-                                    {currentRegistro?.idregdeuda ? 'Guardar' : 'Crear'}
-                                </Button>)}
-
-                                {session.user.role === 'USER' &&  !currentRegistro.idregdeuda &&( <Button
-                                    color="primary"
-                                    type="submit"
-                                    form="registro-form"
-                                    isLoading={isSubmitting}
-                                >
-                                    {currentRegistro?.idregdeuda ? 'Guardar' : 'Crear'}
-                                </Button>)}
-
+                                {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                    <Button
+                                        color="primary"
+                                        type="submit"
+                                        form="lote-form"
+                                        isLoading={isLoteSubmitting}
+                                    >
+                                        Crear Lote
+                                    </Button>
+                                )}
                             </ModalFooter>
                         </>
                     )}

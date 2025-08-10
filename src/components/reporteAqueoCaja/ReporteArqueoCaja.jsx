@@ -151,29 +151,53 @@ export default function ReporteArqueoCaja() {
               <TableHeader>
                 <TableColumn>N° Recibo</TableColumn>
                 <TableColumn>Fecha</TableColumn>
+                <TableColumn>Cliente/Stand</TableColumn>
+                <TableColumn>Concepto</TableColumn>
+                <TableColumn>Descripción</TableColumn>
                 <TableColumn>Método Pago</TableColumn>
                 <TableColumn>Entidad</TableColumn>
                 <TableColumn>N° Operación</TableColumn>
-                <TableColumn>Total</TableColumn>
+                <TableColumn>Monto</TableColumn>
               </TableHeader>
               <TableBody>
                 {reporte.detalleIngresos
+                  .flatMap(ingreso => 
+                    ingreso.detalles.map(detalle => ({
+                      ...detalle,
+                      numerorecibo: ingreso.numerorecibo,
+                      fecharecibo: ingreso.fecharecibo,
+                      idrecibo_ingreso: ingreso.idrecibo_ingreso,
+                      metodoPago: ingreso.metodoPago,
+                      entidadRecaudadora: ingreso.entidadRecaudadora,
+                      numero_operacion: ingreso.numero_operacion
+                    }))
+                  )
                   .slice((pageIngresos - 1) * pageSize, pageIngresos * pageSize)
-                  .map((ingreso) => (
-                    <TableRow key={ingreso.idrecibo_ingreso}>
-                      <TableCell>{ingreso.numerorecibo}</TableCell>
-                      <TableCell>{format(new Date(ingreso.fecharecibo), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell>{ingreso.metodoPago.descripcion}</TableCell>
-                      <TableCell>{ingreso.entidadRecaudadora?.descripcion || '-'}</TableCell>
-                      <TableCell>{ingreso.numero_operacion || '-'}</TableCell>
-                      <TableCell>S/ {Number(ingreso.total).toFixed(2)}</TableCell>
+                  .map((detalle, index) => (
+                    <TableRow key={`${detalle.idrecibo_ingreso}-${detalle.idrecibo_ingreso_detalle}-${index}`}>
+                      <TableCell>{detalle.numerorecibo}</TableCell>
+                      <TableCell>{format(new Date(detalle.fecharecibo), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{detalle.clienteStand}</div>
+                          <div className="text-sm text-gray-500">{detalle.stand}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{detalle.concepto?.descripcion || 'Sin concepto'}</TableCell>
+                      <TableCell>{detalle.descripcion || 'Sin descripción'}</TableCell>
+                      <TableCell>{detalle.metodoPago.descripcion}</TableCell>
+                      <TableCell>{detalle.entidadRecaudadora?.descripcion || '-'}</TableCell>
+                      <TableCell>{detalle.numero_operacion || '-'}</TableCell>
+                      <TableCell>S/ {Number(detalle.monto).toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
               </TableBody>
             </Table>
             <div className="flex justify-center mt-4">
               <Pagination
-                total={Math.ceil(reporte.detalleIngresos.length / pageSize)}
+                total={Math.ceil(
+                  reporte.detalleIngresos.flatMap(ingreso => ingreso.detalles).length / pageSize
+                )}
                 page={pageIngresos}
                 onChange={setPageIngresos}
               />
@@ -186,23 +210,37 @@ export default function ReporteArqueoCaja() {
               <TableHeader>
                 <TableColumn>N° Recibo</TableColumn>
                 <TableColumn>Fecha</TableColumn>
-                <TableColumn>Total</TableColumn>
+                <TableColumn>Concepto</TableColumn>
+                <TableColumn>Descripción</TableColumn>
+                <TableColumn>Monto</TableColumn>
               </TableHeader>
               <TableBody>
                 {reporte.detalleEgresos
+                  .flatMap(egreso => 
+                    egreso.detalles.map(detalle => ({
+                      ...detalle,
+                      numerorecibo_egreso: egreso.numerorecibo_egreso,
+                      fecharecibo_egreso: egreso.fecharecibo_egreso,
+                      idrecibo_egreso: egreso.idrecibo_egreso
+                    }))
+                  )
                   .slice((pageEgresos - 1) * pageSize, pageEgresos * pageSize)
-                  .map((egreso) => (
-                    <TableRow key={egreso.idrecibo_egreso}>
-                      <TableCell>{egreso.numerorecibo_egreso}</TableCell>
-                      <TableCell>{format(new Date(egreso.fecharecibo_egreso), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell>S/ {Number(egreso.total).toFixed(2)}</TableCell>
+                  .map((detalle, index) => (
+                    <TableRow key={`${detalle.idrecibo_egreso}-${detalle.idrecibo_egreso_detalle}-${index}`}>
+                      <TableCell>{detalle.numerorecibo_egreso}</TableCell>
+                      <TableCell>{format(new Date(detalle.fecharecibo_egreso), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{detalle.concepto?.descripcion || 'Sin concepto'}</TableCell>
+                      <TableCell>{detalle.descripcion || 'Sin descripción'}</TableCell>
+                      <TableCell>S/ {Number(detalle.monto).toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
               </TableBody>
             </Table>
             <div className="flex justify-center mt-4">
               <Pagination
-                total={Math.ceil(reporte.detalleEgresos.length / pageSize)}
+                total={Math.ceil(
+                  reporte.detalleEgresos.flatMap(egreso => egreso.detalles).length / pageSize
+                )}
                 page={pageEgresos}
                 onChange={setPageEgresos}
               />

@@ -39,6 +39,10 @@ model User {
   updatedReciboEgreso recibo_egreso[] @relation("UpdatedReciboEgreso")
   
   
+
+  updatedRegDetalleDebts reg_deuda_detalle[] @relation("UpdatedRegDetalleDebts")
+
+  createdRegDetalleDebts reg_deuda_detalle[] @relation("CreatedRegDetalleDebts")
 }
 
 model cliente{
@@ -70,6 +74,7 @@ model concepto_deuda{
   updatedBy User @relation("UpdatedDebts", fields: [updatedby], references: [id])
   deudas reg_deuda[]  // Relación inversa con reg_deuda
   detallesReciboIngreso recibo_ingreso_detalle[] // Relación inversa
+  conceptoDeudaDetalle reg_deuda_detalle[] @relation("ConceptoDeudaDetalle")
 }
 
 model reg_deuda {
@@ -85,18 +90,26 @@ model reg_deuda {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   estado Boolean
-  detalles reg_deuda_detalle[] // Relación uno a muchos con el detalle
 }
 
 model reg_deuda_detalle {
   idregdeuda_detalle Int @id @default(autoincrement())
-  idregdeuda Int
-  cabecera reg_deuda @relation(fields: [idregdeuda], references: [idregdeuda])
+  concepto concepto_deuda @relation("ConceptoDeudaDetalle",fields: [idconcepto_deuda], references: [idconcepto])
+  idconcepto_deuda Int
   idstand Int
+  fechadeudaStand DateTime
   stand stand @relation(fields: [idstand], references: [idstand])
   mora Decimal? @db.Decimal(10, 4)
   monto Decimal @db.Decimal(10, 4)
   detallesReciboIngreso recibo_ingreso_detalle[] // Relación inversa
+  createdby Int
+  updatedby Int
+  createdBy User @relation("CreatedRegDetalleDebts", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedRegDetalleDebts", fields: [updatedby], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  estado Boolean
+  lote Boolean
 }
 
 model documento_numeracion{

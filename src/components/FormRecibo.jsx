@@ -152,7 +152,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
       
       const detallesIds = form.detalles.map(d => d.idregdeuda_detalle);
       const deudasFiltradas = data.filter(
-        deuda => !detallesIds.includes(deuda.idregdeuda_detalle)
+        deuda => !detallesIds.includes(deuda.idregdeuda_detalle) && deuda.saldoPendiente > 0
       );
       setDeudas(deudasFiltradas);
     } catch (error) {
@@ -310,9 +310,9 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
       detalles: [
         ...prev.detalles,
         {
-          idconcepto: deuda.cabecera.idconcepto_deuda,
-          concepto: deuda.cabecera.concepto,
-          fechadeuda: deuda.cabecera.fechadeuda,
+          idconcepto: deuda.idconcepto_deuda,
+          concepto: deuda.concepto,
+          fechadeuda: deuda.fechadeudaStand,
           idregdeuda_detalle: deuda.idregdeuda_detalle,
           montoDeuda: deuda.monto,
           totalPagado: deuda.totalPagado || 0,
@@ -337,7 +337,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
       d => d.idregdeuda_detalle === detalleAEliminar.idregdeuda_detalle
     );
     
-    if (deudaOriginal) {
+    if (deudaOriginal && deudaOriginal.saldoPendiente > 0) {
       setDeudas(prev => [...prev, deudaOriginal]);
     }
   };
@@ -481,8 +481,8 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                   <TableBody>
                     {deudas.map(deuda => (
                       <TableRow key={deuda.idregdeuda_detalle}>
-                        <TableCell>{deuda.cabecera.concepto.descripcion}</TableCell>
-                        <TableCell>{new Date(deuda.cabecera.fechadeuda).toLocaleDateString()}</TableCell>
+                        <TableCell>{deuda.concepto?.descripcion || 'Concepto no disponible'}</TableCell>
+                        <TableCell>{new Date(deuda.fechadeudaStand).toLocaleDateString()}</TableCell>
                         <TableCell>S/. {deuda.monto.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.totalPagado.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.saldoPendiente.toFixed(2)}</TableCell>

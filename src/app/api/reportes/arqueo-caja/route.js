@@ -17,10 +17,40 @@ export async function POST(request) {
         estado: true
       },
       include: {
-        detalles: true,
-        metodoPago: true
+        detalles: {
+          include: {
+            concepto: true,
+            detalleDeuda: {
+              include: {
+                stand: {
+                  include: {
+                    client: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        metodoPago: true,
+        stand: {
+          include: {
+            client: true
+          }
+        }
       }
     })
+
+    // Transformar ingresos para incluir detalles expandidos
+    const ingresosTransformados = ingresos.map(ingreso => ({
+      ...ingreso,
+      detalles: ingreso.detalles.map(detalle => ({
+        ...detalle,
+        concepto: detalle.concepto,
+        descripcion: detalle.descripcion || detalle.concepto?.descripcion || 'Sin descripción',
+        clienteStand: detalle.detalleDeuda?.stand?.client?.nombre || ingreso.stand?.client?.nombre || 'Sin cliente',
+        stand: detalle.detalleDeuda?.stand?.descripcion || ingreso.stand?.descripcion || 'Sin stand'
+      }))
+    }))
 
     // Obtener todos los egresos hasta la fecha de corte
     const egresos = await db.recibo_egreso.findMany({
@@ -39,13 +69,23 @@ export async function POST(request) {
       }
     })
 
+    // Transformar egresos para incluir detalles expandidos
+    const egresosTransformados = egresos.map(egreso => ({
+      ...egreso,
+      detalles: egreso.detalles.map(detalle => ({
+        ...detalle,
+        concepto: detalle.concepto,
+        descripcion: detalle.descripcion || detalle.concepto?.descripcion || 'Sin descripción'
+      }))
+    }))
+
     // Calcular totales
-    const totalIngresos = ingresos.reduce((sum, ingreso) => sum + Number(ingreso.total), 0)
-    const totalEgresos = egresos.reduce((sum, egreso) => sum + Number(egreso.total), 0)
+    const totalIngresos = ingresosTransformados.reduce((sum, ingreso) => sum + Number(ingreso.total), 0)
+    const totalEgresos = egresosTransformados.reduce((sum, egreso) => sum + Number(egreso.total), 0)
     const saldo = totalIngresos - totalEgresos
 
     // Agrupar por método de pago
-    const ingresosPorMetodo = ingresos.reduce((acc, ingreso) => {
+    const ingresosPorMetodo = ingresosTransformados.reduce((acc, ingreso) => {
       const metodo = ingreso.metodoPago.descripcion
       if (!acc[metodo]) {
         acc[metodo] = 0
@@ -60,8 +100,8 @@ export async function POST(request) {
       totalEgresos,
       saldo,
       ingresosPorMetodo: Object.entries(ingresosPorMetodo).map(([metodo, monto]) => ({ metodo, monto })),
-      detalleIngresos: ingresos,
-      detalleEgresos: egresos
+      detalleIngresos: ingresosTransformados,
+      detalleEgresos: egresosTransformados
     })
   } catch (error) {
     return NextResponse.json(

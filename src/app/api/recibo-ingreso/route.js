@@ -94,6 +94,36 @@ const fechaPeru = new Date(ahora.getTime() - offsetPeru);
       );
     }
 
+    // Validar que los montos de pago no excedan el saldo pendiente
+    for (const detalle of detalles) {
+      if (detalle.idregdeuda_detalle) {
+        const deudaDetalle = await db.reg_deuda_detalle.findUnique({
+          where: { idregdeuda_detalle: parseInt(detalle.idregdeuda_detalle) },
+          include: {
+            detallesReciboIngreso: {
+              select: { monto: true }
+            }
+          }
+        });
+
+        if (deudaDetalle) {
+          const totalPagado = deudaDetalle.detallesReciboIngreso.reduce(
+            (sum, det) => sum + parseFloat(det.monto.toString()),
+            0
+          );
+          const saldoPendiente = parseFloat(deudaDetalle.monto.toString()) - totalPagado;
+          const montoPago = parseFloat(detalle.montoPago);
+
+          if (montoPago > saldoPendiente) {
+            return NextResponse.json(
+              { error: `El monto de pago (S/. ${montoPago.toFixed(2)}) excede el saldo pendiente (S/. ${saldoPendiente.toFixed(2)}) para la deuda seleccionada` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+
     // Obtener numeración
     const numeracion = await db.documento_numeracion.findFirst({
       where: { descripcion: 'recibo ingreso' }

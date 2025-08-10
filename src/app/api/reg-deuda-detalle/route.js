@@ -1,76 +1,37 @@
 // app/api/reg-deuda-detalle/route.ts
 import { NextResponse } from 'next/server'
 import db from '@/libs/db'
-
-// export async function GET(request) {
-//   const { searchParams } = new URL(request.url)
-//   const standId = searchParams.get('standId')
-
-//   if (!standId) {
-//     return NextResponse.json(
-//       { error: "standId es requerido" },
-//       { status: 400 }
-//     )
-//   }
-
-//   try {
-//     const deudas = await db.reg_deuda_detalle.findMany({
-//       where: {
-//         idstand: parseInt(standId),
-//         // NOT: {
-//         //   recibo_ingreso_detalle: { some: {} }
-//         // }
-//       },
-//       include: {
-//         cabecera: {
-//           select: {
-//             idconcepto_deuda: true,
-//             concepto: true,
-//             fechadeuda: true
-//           }
-//         }
-//       }
-//     })
-
-//     // Transformar los resultados para asegurar que monto sea number
-//     const deudasTransformadas = deudas.map(deuda => ({
-//       ...deuda,
-//       monto: parseFloat(deuda.monto.toString()), // Convertir a número
-//       cabecera: {
-//         ...deuda.cabecera,
-//         concepto: deuda.cabecera.concepto
-//       }
-//     }))
-    
-//     return NextResponse.json(deudasTransformadas)
-//   } catch (error) {
-//     return NextResponse.json(
-//       { error: "Error al obtener deudas" },
-//       { status: 500 }
-//     )
-//   }
-// }
+import { getSession } from '@/libs/auth'
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const standId = searchParams.get('standId');
 
-    if (!standId) {
-      return NextResponse.json(
-        { error: "standId es requerido" },
-        { status: 400 }
-      );
+    let whereClause = {};
+    
+    // Si se proporciona standId, filtrar por ese stand
+    if (standId) {
+      whereClause.idstand = parseInt(standId);
     }
 
-    const deudas = await db.reg_deuda_detalle.findMany({
-      where: {
-        idstand: parseInt(standId)
-      },
+    const detalles = await db.reg_deuda_detalle.findMany({
+      where: whereClause,
       include: {
-        cabecera: {
+        concepto: true,
+        stand: {
           include: {
-            concepto: true
+            client: true
+          }
+        },
+        createdBy: {
+          select: {
+            username: true
+          }
+        },
+        updatedBy: {
+          select: {
+            username: true
           }
         },
         detallesReciboIngreso: {
@@ -78,34 +39,113 @@ export async function GET(request) {
             monto: true
           }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
-    // Calcular saldo pendiente para cada deuda
-    const deudasConSaldo = deudas.map(deuda => {
-      const totalPagado = deuda.detallesReciboIngreso.reduce(
+
+    // Transformar los resultados para asegurar que los montos sean números
+    const detallesTransformados = detalles.map(detalle => {
+      const totalPagado = detalle.detallesReciboIngreso.reduce(
         (sum, det) => sum + parseFloat(det.monto.toString()),
         0
       );
-      console.log("totalpagado", totalPagado)
-      const saldoPendiente = parseFloat(deuda.monto.toString()) - totalPagado;
- console.log("deuda", deuda)
+      
+      const montoTotal = parseFloat(detalle.monto.toString());
+      const saldoPendiente = montoTotal - totalPagado;
+      
       return {
-        ...deuda,
-        monto: parseFloat(deuda.monto.toString()),
+        ...detalle,
+        monto: montoTotal,
+        mora: detalle.mora ? parseFloat(detalle.mora.toString()) : 0,
         totalPagado,
-        saldoPendiente,
-        cabecera: {
-          ...deuda.cabecera,
-          concepto: deuda.cabecera.concepto
-        }
+        saldoPendiente: Math.max(0, saldoPendiente) // Asegurar que no sea negativo
       };
-    }).filter(deuda => deuda.saldoPendiente > 0); // Solo deudas con saldo pendiente
+    });
 
-    return NextResponse.json(deudasConSaldo);
+    // Filtrar solo los detalles que tienen saldo pendiente
+    const detallesConSaldo = detallesTransformados.filter(detalle => detalle.saldoPendiente > 0);
+
+    return NextResponse.json(detallesConSaldo);
   } catch (error) {
-    console.error(error);
+    console.error('Error al obtener detalles de deuda:', error);
     return NextResponse.json(
-      { error: "Error al obtener deudas" },
+      { error: "Error al obtener detalles de deuda" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      idconcepto_deuda,
+      idstand,
+      fechadeudaStand,
+      monto,
+      mora = 0,
+      estado = true,
+      lote = false
+    } = body;
+
+    // Validaciones
+    if (!idconcepto_deuda || !idstand || !fechadeudaStand || !monto) {
+      return NextResponse.json(
+        { error: "Todos los campos obligatorios deben estar presentes" },
+        { status: 400 }
+      );
+    }
+
+    // Crear el detalle de deuda
+    const nuevoDetalle = await db.reg_deuda_detalle.create({
+      data: {
+        idconcepto_deuda: parseInt(idconcepto_deuda),
+        idstand: parseInt(idstand),
+        fechadeudaStand: new Date(fechadeudaStand),
+        monto: parseFloat(monto),
+        mora: parseFloat(mora),
+        estado: Boolean(estado),
+        lote: Boolean(lote),
+        createdby: session.user.id,
+        updatedby: session.user.id
+      },
+      include: {
+        concepto: true,
+        stand: {
+          include: {
+            client: true
+          }
+        },
+        createdBy: {
+          select: {
+            username: true
+          }
+        },
+        updatedBy: {
+          select: {
+            username: true
+          }
+        }
+      }
+    });
+
+    return NextResponse.json({
+      ...nuevoDetalle,
+      monto: parseFloat(nuevoDetalle.monto.toString()),
+      mora: nuevoDetalle.mora ? parseFloat(nuevoDetalle.mora.toString()) : 0
+    });
+
+  } catch (error) {
+    console.error('Error al crear detalle de deuda:', error);
+    return NextResponse.json(
+      { error: "Error al crear detalle de deuda: " + error.message },
       { status: 500 }
     );
   }
