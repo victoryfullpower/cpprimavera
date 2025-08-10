@@ -190,6 +190,7 @@ export default function DocumentoNumeracionPage() {
                 </div>
             </div>
 
+            {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
             <Table
                 aria-label="Tabla de numeración de documentos"
                 bottomContent={
@@ -249,25 +250,23 @@ export default function DocumentoNumeracionPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
-                                    {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
-                                        <Button
-                                            size="sm"
-                                            variant="flat"
-                                            color="primary"
-                                            onPress={() => {
-                                                setCurrentDocumento({
-                                                    iddocumento_numeracion: item.iddocumento_numeracion,
-                                                    descripcion: item.descripcion,
-                                                    numeroactual: item.numeroactual,
-                                                    apartir_de_numeracion: item.apartir_de_numeracion,
-                                                    estado: item.estado
-                                                })
-                                                onOpen()
-                                            }}
-                                        >
-                                            Editar
-                                        </Button>
-                                    )}
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        color="primary"
+                                        onPress={() => {
+                                            setCurrentDocumento({
+                                                iddocumento_numeracion: item.iddocumento_numeracion,
+                                                descripcion: item.descripcion,
+                                                numeroactual: item.numeroactual,
+                                                apartir_de_numeracion: item.apartir_de_numeracion,
+                                                estado: item.estado
+                                            })
+                                            onOpen()
+                                        }}
+                                    >
+                                        Editar
+                                    </Button>
                                     {session.user.role === 'SUPERADMIN' && (
                                         <Button
                                             size="sm"
@@ -284,6 +283,70 @@ export default function DocumentoNumeracionPage() {
                     )}
                 </TableBody>
             </Table>
+            )}
+
+            {(session.user.role === 'USER') && (
+            <Table
+                aria-label="Tabla de numeración de documentos"
+                bottomContent={
+                    <div className="flex w-full justify-center">
+                        <Pagination
+                            isCompact
+                            showControls
+                            showShadow
+                            color="primary"
+                            page={page}
+                            total={Math.ceil(filteredItems.length / rowsPerPage)}
+                            onChange={setPage}
+                        />
+                    </div>
+                }
+                classNames={{
+                    wrapper: "min-h-[400px]",
+                }}
+            >
+                <TableHeader>
+                    <TableColumn key="iddocumento_numeracion" width="80px">ID</TableColumn>
+                    <TableColumn key="descripcion">Descripción</TableColumn>
+                    <TableColumn key="numeroactual" width="120px">Número Actual</TableColumn>
+                    <TableColumn key="apartir_de_numeracion" width="150px">A partir de N°</TableColumn>
+                    <TableColumn key="estado" width="120px">Estado</TableColumn>
+                    <TableColumn key="creadoPor">Creado por</TableColumn>
+                    <TableColumn key="actualizadoPor">Actualizado por</TableColumn>
+                </TableHeader>
+                <TableBody
+                    items={paginatedItems}
+                    isLoading={loading}
+                    loadingContent={<Spinner />}
+                >
+                    {(item) => (
+                        <TableRow key={item.iddocumento_numeracion}>
+                            <TableCell>{item.iddocumento_numeracion}</TableCell>
+                            <TableCell>{item.descripcion}</TableCell>
+                            <TableCell>{item.numeroactual}</TableCell>
+                            <TableCell>{item.apartir_de_numeracion}</TableCell>
+                            <TableCell>
+                                <Chip color={item.estado ? "success" : "danger"}>
+                                    {item.estado ? "Activo" : "Inactivo"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>
+                                {item.createdBy?.username || 'N/A'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                            <TableCell>
+                                {item.updatedBy?.username || 'N/A'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.updatedAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            )}
 
             {/* Modal para crear/editar */}
             <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">

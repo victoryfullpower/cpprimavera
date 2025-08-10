@@ -65,7 +65,7 @@ export default function ConceptosDeudaPage() {
     // Filtrar y paginar
     const filteredItems = conceptos.filter(concepto =>
         concepto.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
-        (concepto.createdBy?.username.toLowerCase().includes(filter.toLowerCase())))
+        (concepto.createdBy?.username?.toLowerCase().includes(filter.toLowerCase())))
     
     const paginatedItems = filteredItems.slice(
         (page - 1) * rowsPerPage,
@@ -266,8 +266,18 @@ export default function ConceptosDeudaPage() {
                                     {item.deuda ? "Sí" : "No"}
                                 </Chip>
                             </TableCell>
-                            <TableCell>{item.creadoPor || 'Sistema'}</TableCell>
-                            <TableCell>{item.actualizadoPor || 'Sistema'}</TableCell>
+                            <TableCell>
+                                {item.createdBy?.username || 'Sistema'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                            <TableCell>
+                                {item.updatedBy?.username || 'Sistema'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.updatedAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
                             <TableCell>
                                 <div className="flex gap-2">
                                     {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
@@ -357,8 +367,18 @@ export default function ConceptosDeudaPage() {
                                     {item.deuda ? "Sí" : "No"}
                                 </Chip>
                             </TableCell>
-                            <TableCell>{item.creadoPor || 'Sistema'}</TableCell>
-                            <TableCell>{item.actualizadoPor || 'Sistema'}</TableCell>
+                            <TableCell>
+                                {item.createdBy?.username || 'Sistema'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
+                            <TableCell>
+                                {item.updatedBy?.username || 'Sistema'}
+                                <p className="text-xs text-gray-400">
+                                    {new Date(item.updatedAt).toLocaleDateString()}
+                                </p>
+                            </TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -420,22 +440,26 @@ export default function ConceptosDeudaPage() {
                                 <Button color="danger" variant="light" onPress={onClose}>
                                     Cancelar
                                 </Button>
-                                {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (<Button
-                                    color="primary"
-                                    type="submit"
-                                    form="concepto-form"
-                                    isLoading={isSubmitting}
-                                >
-                                    {currentConcepto?.idconcepto ? 'Guardar' : 'Crear'}
-                                </Button>)}
-                                {session.user.role === 'USER' && !currentConcepto?.idconcepto && (<Button
-                                    color="primary"
-                                    type="submit"
-                                    form="concepto-form"
-                                    isLoading={isSubmitting}
-                                >
-                                    {currentConcepto?.idconcepto ? 'Guardar' : 'Crear'}
-                                </Button>)}
+                                {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
+                                    <Button
+                                        color="primary"
+                                        type="submit"
+                                        form="concepto-form"
+                                        isLoading={isSubmitting}
+                                    >
+                                        {currentConcepto?.idconcepto ? 'Guardar' : 'Crear'}
+                                    </Button>
+                                )}
+                                {session.user.role === 'USER' && !currentConcepto?.idconcepto && (
+                                    <Button
+                                        color="primary"
+                                        type="submit"
+                                        form="concepto-form"
+                                        isLoading={isSubmitting}
+                                    >
+                                        Crear
+                                    </Button>
+                                )}
                             </ModalFooter>
                         </>
                     )}
