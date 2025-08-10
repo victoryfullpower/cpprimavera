@@ -19,6 +19,11 @@ const ReciboEgresoPrint = forwardRef(({
 
   // Función para convertir números a letras
   const numeroALetras = (numero) => {
+    // Validar que el número sea válido
+    if (numero === null || numero === undefined || isNaN(numero)) {
+      return 'cero con 00/100';
+    }
+    
     const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
     const decenas = ['', 'diez', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
     const especiales = ['once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
@@ -65,11 +70,14 @@ const ReciboEgresoPrint = forwardRef(({
     }
 
     // Capitalizar la primera letra
-    if (letras.length > 0) {
+    if (letras && letras.length > 0) {
       letras = letras.charAt(0).toUpperCase() + letras.slice(1);
     }
 
-    return letras + ' ' + (decimal ? `con ${decimal.toString().padStart(2, '0')}/100` : '00/100');
+    // Asegurar que letras sea siempre un string válido
+    const letrasFinal = letras || 'cero';
+    
+    return letrasFinal + ' ' + (decimal ? `con ${decimal.toString().padStart(2, '0')}/100` : '00/100');
   };
 
   const ReciboIndividual = ({ esTestigo = false }) => (
