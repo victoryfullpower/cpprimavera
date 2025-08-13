@@ -70,6 +70,7 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    // Prisma manejará automáticamente la eliminación en cascada
     await db.stand.delete({
       where: { idstand: Number(params.id) }
     })

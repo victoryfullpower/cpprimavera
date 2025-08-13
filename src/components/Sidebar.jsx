@@ -193,6 +193,9 @@ export default function Sidebar({ userRole }) {
                <Link href="/dashboard/reportes/reporte-arqueo-caja" className={`submenu-item ${isActive('/dashboard/reportes/reporte-arqueo-caja') ? 'active' : ''}`}>
                 <FiPieChart className="inline mr-2" /> Arqueo de Caja
               </Link>
+               <Link href="/dashboard/reportes/estatus-stands" className={`submenu-item ${isActive('/dashboard/reportes/estatus-stands') ? 'active' : ''}`}>
+                <FiLayers className="inline mr-2" /> Estatus de Stands
+              </Link>
              
             </div>
           </div>

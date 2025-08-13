@@ -17,7 +17,7 @@ const ReciboPrint = forwardRef(({
     month: '2-digit',
     year: 'numeric'
   });
-
+  console.log("detalles",detalles);
   const total = detalles.reduce((sum, det) => sum + (Number(det.montoPago) || 0), 0)
 
   // Función para convertir números a letras
@@ -75,6 +75,7 @@ const ReciboPrint = forwardRef(({
           <span className="font-semibold">Cliente:</span>
           <span>{recibo?.stand?.client?.nombre || ''}</span>
         </div>)}
+
         <div className="flex justify-between">
           <span className="font-semibold">Método Pago:</span>
           <span>
@@ -102,7 +103,22 @@ const ReciboPrint = forwardRef(({
       </div>
       
       <div className="mb-2 text-sm">
-        <p className="font-semibold">Recibí de {recibo?.stand?.client?.nombre || 'el cliente'} la cantidad de:</p>
+        <p className="font-semibold">
+          Recibí de {
+            (() => {
+              // Buscar si algún detalle tiene inquilino activo
+              const detalleConInquilino = detalles?.find(det => det.detalleDeuda?.inquilino_activo);
+              console.log("detalleConInquilino",detalleConInquilino);
+              if (detalleConInquilino?.detalleDeuda?.inquilino_activo) {
+                // Si hay inquilino activo, mostrar su nombre
+                return detalleConInquilino.detalleDeuda.inquilino_activo.nombre;
+              } else {
+                // Si no hay inquilino, mostrar el cliente
+                return recibo?.stand?.client?.nombre || 'el cliente';
+              }
+            })()
+          } la cantidad de:
+        </p>
         <p className="font-bold italic">{numeroALetras(total)} SOLES</p>
       </div>
       

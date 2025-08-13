@@ -205,4 +205,88 @@ body {
   display: none;
 }
 
+/* Z-index alto para el DatePicker */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+.react-datepicker-wrapper {
+  z-index: 9999;
+  position: relative;
+}
+
+.react-datepicker__input-container {
+  z-index: 9999;
+  position: relative;
+}
+
+/* Asegurar que el calendario se muestre por encima de todo */
+.react-datepicker-popper[data-placement^="bottom"] {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+.react-datepicker-popper[data-placement^="top"] {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* Override de cualquier z-index menor */
+.react-datepicker {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* Solución específica para el error de floating-ui */
+.react-datepicker-popper {
+  position: absolute !important;
+  z-index: 9999 !important;
+}
+
+/* Asegurar que el modal tenga un z-index apropiado */
+[data-slot="base"] {
+  z-index: 9998 !important;
+}
+
+[data-slot="wrapper"] {
+  z-index: 9998 !important;
+}
+
+/* Clases específicas para el DatePicker con z-index alto */
+.datepicker-popper-high-z {
+  z-index: 9999 !important;
+  position: absolute !important;
+}
+
+.datepicker-calendar-high-z {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+.datepicker-wrapper-high-z {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* Portal para el DatePicker */
+#datepicker-portal {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* Solución para el error de floating-ui */
+.react-datepicker-popper {
+  position: absolute !important;
+  z-index: 9999 !important;
+}
+
+.react-datepicker-popper[data-placement^="bottom"] {
+  margin-top: 4px !important;
+}
+
+.react-datepicker-popper[data-placement^="top"] {
+  margin-bottom: 4px !important;
+}
+
 

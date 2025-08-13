@@ -28,7 +28,16 @@ export async function GET() {
         },
         detalles: {
           include: {
-            detalleDeuda: true,
+            detalleDeuda: {
+              include: {
+                inquilino_activo: {
+                  select: {
+                    idinquilino: true,
+                    nombre: true
+                  }
+                }
+              }
+            },
             concepto: true
           }
         },

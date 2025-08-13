@@ -166,11 +166,13 @@ export default function RecibosIngresoPage() {
             const res = await fetch(`/api/recibo-ingreso/${id}`)
             if (!res.ok) throw new Error(await res.text())
             const reciboData = await res.json()
+            console.log("reciboData",reciboData);
             const detallesFormateados = reciboData.detalles.map(detalle => ({
                 ...detalle,
                 montoPago: detalle.monto, // Cambiamos monto a montoPago
                 concepto: detalle.concepto || { descripcion: 'Concepto no disponible' }
             }))
+            console.log("detallesFormateados",detallesFormateados);
             setReciboParaImprimir({
                 recibo: reciboData,
                 detalles: detallesFormateados
@@ -238,6 +240,14 @@ export default function RecibosIngresoPage() {
                 <TableHeader>
                     <TableColumn>N° Recibo</TableColumn>
                     <TableColumn>Stand/Cliente</TableColumn>
+                    <TableColumn>
+                        <div className="flex items-center gap-1">
+                            <span>Inquilino</span>
+                            <Tooltip content="Muestra el inquilino activo del stand o si el concepto está configurado para que pague el inquilino">
+                                <span className="text-xs text-gray-400 cursor-help">ⓘ</span>
+                            </Tooltip>
+                        </div>
+                    </TableColumn>
                     <TableColumn>Método Pago</TableColumn>
                     <TableColumn>Entidad Recaudadora</TableColumn>
                     <TableColumn>N° Operación</TableColumn>
@@ -252,6 +262,47 @@ export default function RecibosIngresoPage() {
                             <TableCell>{recibo.numerorecibo}</TableCell>
                             <TableCell>
                                 {recibo.stand?.descripcion || 'Sin stand'} - {recibo.stand?.client?.nombre || 'Sin cliente'}
+                            </TableCell>
+                            <TableCell>
+                                {(() => {
+                                    // Buscar si algún detalle tiene inquilino activo
+                                    const detalleConInquilino = recibo.detalles?.find(det => 
+                                        det.detalleDeuda?.inquilino_activo
+                                    );
+                                    console.log("detalleConInquilino",detalleConInquilino);
+                                    if (detalleConInquilino?.detalleDeuda?.inquilino_activo) {
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-medium text-green-600">
+                                                    {detalleConInquilino.detalleDeuda.inquilino_activo.nombre}
+                                                </span>
+                                                <span className="text-xs text-green-500 bg-green-50 px-2 py-1 rounded-full">
+                                                    Inquilino Activo
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    
+                                    // Si no hay inquilino, verificar si el concepto es de tipo "inquilinopaga"
+                                    const conceptoInquilinoPaga = recibo.detalles?.find(det => 
+                                        det.concepto?.inquilinopaga
+                                    );
+                                    
+                                    if (conceptoInquilinoPaga) {
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
+                                                    Concepto: Inquilino Paga
+                                                </span>
+                                                <span className="text-xs text-orange-500">
+                                                    (Sin inquilino asignado)
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    
+                                    return <span className="text-gray-400">-</span>;
+                                })()}
                             </TableCell>
                             <TableCell>{recibo.metodoPago?.descripcion}</TableCell>
                             <TableCell>{recibo.entidadRecaudadora?.descripcion || '-'}</TableCell>

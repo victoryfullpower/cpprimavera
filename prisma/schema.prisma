@@ -59,8 +59,24 @@ model stand{
   client cliente? @relation(fields: [idcliente],references: [idcliente])
   detallesDeuda reg_deuda_detalle[]  // Relación inversa con reg_deuda_detalle
   recibosIngreso recibo_ingreso[] // Relación inversa
+  inquilino_stand inquilino_stand[]
 }
-
+model inquilino_stand{
+  idinquilino_stand Int @id @default(autoincrement())
+  idinquilino Int
+  inquilino inquilino @relation(fields: [idinquilino], references: [idinquilino])
+  idstand Int
+  stand stand @relation(fields: [idstand], references: [idstand], onDelete: Cascade)
+  actual Boolean
+  fecha_inicio DateTime
+}
+model inquilino{
+  idinquilino Int @id @default(autoincrement())
+  nombre String
+  estado Boolean
+  inquilino_stand inquilino_stand[]
+  deudas_inquilino_activo reg_deuda_detalle[] @relation("InquilinoActivoDeuda")
+}
 model concepto_deuda{
   idconcepto Int @id @default(autoincrement())
   descripcion String
@@ -68,6 +84,7 @@ model concepto_deuda{
   deuda Boolean
   createdby Int
   updatedby Int
+  inquilinopaga Boolean?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy User @relation("CreatedDebts", fields: [createdby], references: [id])
@@ -98,7 +115,9 @@ model reg_deuda_detalle {
   idconcepto_deuda Int
   idstand Int
   fechadeudaStand DateTime
-  stand stand @relation(fields: [idstand], references: [idstand])
+  stand stand @relation(fields: [idstand], references: [idstand], onDelete: Cascade)
+  idinquilino_activo Int? // Campo opcional para registrar el inquilino activo al momento de crear la deuda
+  inquilino_activo inquilino? @relation("InquilinoActivoDeuda", fields: [idinquilino_activo], references: [idinquilino])
   mora Decimal? @db.Decimal(10, 4)
   monto Decimal @db.Decimal(10, 4)
   detallesReciboIngreso recibo_ingreso_detalle[] // Relación inversa
@@ -159,7 +178,7 @@ model recibo_ingreso {
   metodoPago metodo_pago @relation(fields: [idmetodo_pago], references: [idmetodo_pago])
   total Decimal @db.Decimal(10, 4)
   idstand Int?
-  stand stand? @relation(fields: [idstand], references: [idstand])
+  stand stand? @relation(fields: [idstand], references: [idstand], onDelete: Cascade)
   numerorecibo Int
   fecharecibo DateTime
   createdby Int

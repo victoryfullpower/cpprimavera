@@ -117,7 +117,15 @@ export default function RecibosEgresoPage() {
     const filteredItems = useMemo(() =>
         recibos.filter(recibo =>
             recibo.numerorecibo_egreso.toString().includes(filter) ||
-            (recibo.createdBy?.username.toLowerCase().includes(filter.toLowerCase()))
+            (recibo.createdBy?.username.toLowerCase().includes(filter.toLowerCase())) ||
+            // Buscar en conceptos
+            recibo.detalles?.some(detalle => 
+                detalle.concepto?.descripcion?.toLowerCase().includes(filter.toLowerCase())
+            ) ||
+            // Buscar en descripciones
+            recibo.detalles?.some(detalle => 
+                detalle.descripcion?.toLowerCase().includes(filter.toLowerCase())
+            )
         ), [recibos, filter])
 
     const paginatedItems = useMemo(() =>
@@ -190,7 +198,7 @@ export default function RecibosEgresoPage() {
             </div>
 
             <Input
-                placeholder="Buscar por número o creador"
+                placeholder="Buscar por número, concepto, descripción o creador"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 className="mb-4"
@@ -199,6 +207,8 @@ export default function RecibosEgresoPage() {
             <Table>
                 <TableHeader>
                     <TableColumn>N° Recibo</TableColumn>
+                    <TableColumn>Concepto</TableColumn>
+                    <TableColumn>Descripción</TableColumn>
                     <TableColumn>Total</TableColumn>
                     <TableColumn>Fecha</TableColumn>
                     <TableColumn>Registrado por</TableColumn>
@@ -209,6 +219,32 @@ export default function RecibosEgresoPage() {
                     {paginatedItems.map(recibo => (
                         <TableRow key={recibo.idrecibo_egreso}>
                             <TableCell>{recibo.numerorecibo_egreso}</TableCell>
+                            <TableCell>
+                                {recibo.detalles && recibo.detalles.length > 0 ? (
+                                    <div className="space-y-1">
+                                        {recibo.detalles.map((detalle, index) => (
+                                            <div key={index} className="text-sm">
+                                                {detalle.concepto?.descripcion || 'N/A'}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className="text-gray-400">Sin conceptos</span>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                {recibo.detalles && recibo.detalles.length > 0 ? (
+                                    <div className="space-y-1">
+                                        {recibo.detalles.map((detalle, index) => (
+                                            <div key={index} className="text-sm">
+                                                {detalle.descripcion || 'Sin descripción'}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className="text-gray-400">Sin descripción</span>
+                                )}
+                            </TableCell>
                             <TableCell>S/. {Number(recibo.total || 0).toFixed(2)}</TableCell>
                             <TableCell>{format(new Date(recibo.fecharecibo_egreso), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{recibo.createdBy?.username || 'N/A'}</TableCell>

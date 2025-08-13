@@ -21,7 +21,16 @@ export async function GET(request, { params }) {
         detalles: {
           include: {
             concepto: true,
-            detalleDeuda: true
+            detalleDeuda: {
+              include: {
+                inquilino_activo: {
+                  select: {
+                    idinquilino: true,
+                    nombre: true
+                  }
+                }
+              }
+            }
           }
         },
         createdBy: {

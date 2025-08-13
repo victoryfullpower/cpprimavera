@@ -38,7 +38,7 @@ export async function POST(request) {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { descripcion, estado, deuda } = await request.json()
+    const { descripcion, estado, deuda, inquilinopaga } = await request.json()
     
     if (!descripcion) {
       return NextResponse.json(
@@ -52,6 +52,7 @@ export async function POST(request) {
         descripcion,
         estado: estado || false,
         deuda: deuda || false, // Nuevo campo con valor por defecto
+        inquilinopaga: inquilinopaga || false, // Campo inquilino paga
         createdby: session.user.id,
         updatedby: session.user.id,
         updatedAt: getPeruTime(),

@@ -49,7 +49,7 @@ export async function PUT(request, { params }) {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { descripcion, estado, deuda } = await request.json()
+    const { descripcion, estado, deuda, inquilinopaga } = await request.json()
     
     if (!descripcion) {
       return NextResponse.json(
@@ -66,6 +66,7 @@ export async function PUT(request, { params }) {
         descripcion,
         estado,
         deuda, // Nuevo campo
+        inquilinopaga, // Campo inquilino paga
         updatedby: session.user.id,
         updatedAt: getPeruTime()
       },

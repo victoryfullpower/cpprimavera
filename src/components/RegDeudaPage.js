@@ -40,9 +40,10 @@ import { FaInfoCircle } from 'react-icons/fa'
 
 import { formatDecimal } from '@/utils/numbers'
 import { ensureValidDate } from '@/utils/date'
+import EditIcon from '@/components/iconos/EditIcon'
+import DeleteIcon from '@/components/iconos/DeleteIcon'
+import PowerIcon from '@/components/iconos/PowerIcon'
 
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
 import { useSession } from '@/context/SessionContext'
 
 export default function RegDeudaPage({ userRole }) {
@@ -65,7 +66,8 @@ export default function RegDeudaPage({ userRole }) {
         fechadeudaStand: new Date(),
         monto: 0,
         mora: 0,
-        estado: true
+        estado: true,
+        idinquilino_activo: null
     })
     const [loteData, setLoteData] = useState({
         fechadeudaStand: new Date(),
@@ -76,9 +78,13 @@ export default function RegDeudaPage({ userRole }) {
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoteSubmitting, setIsLoteSubmitting] = useState(false)
+    const [inquilinoPaga, setInquilinoPaga] = useState(false)
+    const [inquilinoActivo, setInquilinoActivo] = useState(null)
+    const [inquilinosActivos, setInquilinosActivos] = useState({}) // Para almacenar inquilinos activos por stand
+    const [inquilinosBorrados, setInquilinosBorrados] = useState({}) // Para almacenar inquilinos borrados por stand
     const [sortField, setSortField] = useState('createdAt')
     const [sortDirection, setSortDirection] = useState('desc')
-    const rowsPerPage = 10
+    const rowsPerPage = 50
 
     // Generar años disponibles para el filtro (desde 2000 hasta 2050)
     const availableYears = useMemo(() => {
@@ -95,16 +101,19 @@ export default function RegDeudaPage({ userRole }) {
             { key: "fechadeudaStand", label: "Fecha", width: "120px", allowsSorting: true },
             { key: "concepto", label: "Concepto", allowsSorting: true },
             { key: "stand", label: "Stand", allowsSorting: true },
+            { key: "inquilino", label: "Inquilino", width: "120px", allowsSorting: true },
             { key: "monto", label: "Monto", width: "120px" },
             { key: "mora", label: "Mora", width: "120px" },
             { key: "total", label: "Total", width: "120px" },
+            { key: "pago", label: "Pago", width: "120px" },
+            { key: "saldo", label: "Saldo", width: "120px" },
             { key: "estado", label: "Estado", width: "100px" },
             { key: "creadoPor", label: "Creado por" },
             { key: "actualizadoPor", label: "Actualizado por" }
         ]
 
         // Todos los roles pueden ver la columna de acciones
-        baseColumns.push({ key: "acciones", label: "Acciones", width: "180px" })
+        baseColumns.push({ key: "acciones", label: "Acciones", width: "120px" })
 
         return baseColumns
     }, [])
@@ -118,6 +127,14 @@ export default function RegDeudaPage({ userRole }) {
                 return item.concepto?.descripcion || 'N/A'
             case "stand":
                 return `${item.stand?.descripcion || 'N/A'} - ${item.stand?.client?.nombre || 'Sin cliente'}`
+            case "inquilino":
+                return item.inquilino_activo ? (
+                    <Chip color="success" variant="flat" size="sm">
+                        {item.inquilino_activo.nombre}
+                    </Chip>
+                ) : (
+                    <span className="text-gray-400 text-sm">Sin inquilino</span>
+                )
             case "monto":
                 return (
                     <Chip color="primary" variant="flat">
@@ -139,6 +156,39 @@ export default function RegDeudaPage({ userRole }) {
                         S/. {formatDecimal(total)}
                     </Chip>
                 )
+            case "pago":
+                const totalPagado = item.totalPagado || 0
+                if (totalPagado === 0) {
+                    return <span className="text-gray-400 text-sm">Sin pagos</span>
+                }
+                return (
+                    <Chip color="success" variant="flat">
+                        S/. {formatDecimal(totalPagado)}
+                    </Chip>
+                )
+            case "saldo":
+                const saldoPendiente = item.saldoPendiente || 0
+                const montoTotal = Number(item.monto) + Number(item.mora || 0)
+                
+                if (saldoPendiente === 0) {
+                    return (
+                        <Chip color="success" variant="flat" size="sm">
+                            Pagado
+                        </Chip>
+                    )
+                } else if (saldoPendiente < montoTotal) {
+                    return (
+                        <Chip color="warning" variant="flat" size="sm">
+                            S/. {formatDecimal(saldoPendiente)}
+                        </Chip>
+                    )
+                } else {
+                    return (
+                        <Chip color="danger" variant="flat" size="sm">
+                            S/. {formatDecimal(saldoPendiente)}
+                        </Chip>
+                    )
+                }
             case "estado":
                 return (
                     <Chip color={item.estado ? "success" : "danger"}>
@@ -167,36 +217,42 @@ export default function RegDeudaPage({ userRole }) {
                 return (
                     <div className="flex gap-2">
                         {/* Botón Editar visible para todos los roles */}
-                        <Button
-                            size="sm"
-                            variant="flat"
-                            color="primary"
-                            onPress={() => initEdit(item)}
-                        >
-                            Editar
-                        </Button>
+                        <Tooltip content="Editar" color="primary">
+                            <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                onPress={() => initEdit(item)}
+                            >
+                                <EditIcon className="text-lg text-primary" />
+                            </Button>
+                        </Tooltip>
                         
                         {/* Botones de administración solo para ADMIN y SUPERADMIN */}
                         {(session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
-                            <Button
-                                size="sm"
-                                variant="flat"
-                                color={item.estado ? "warning" : "success"}
-                                onPress={() => toggleEstado(item.idregdeuda_detalle, item.estado)}
-                            >
-                                {item.estado ? "Desactivar" : "Activar"}
-                            </Button>
+                            <Tooltip content={item.estado ? "Desactivar" : "Activar"} color={item.estado ? "warning" : "success"}>
+                                <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() => toggleEstado(item.idregdeuda_detalle, item.estado)}
+                                >
+                                    <PowerIcon className={`text-lg ${item.estado ? "text-warning" : "text-success"}`} />
+                                </Button>
+                            </Tooltip>
                         )}
                         
                         {session.user.role === 'SUPERADMIN' && (
-                            <Button
-                                size="sm"
-                                variant="flat"
-                                color="danger"
-                                onPress={() => handleDelete(item.idregdeuda_detalle)}
-                            >
-                                Eliminar
-                            </Button>
+                            <Tooltip content="Eliminar" color="danger">
+                                <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() => handleDelete(item.idregdeuda_detalle)}
+                                >
+                                    <DeleteIcon className="text-lg text-danger" />
+                                </Button>
+                            </Tooltip>
                         )}
                     </div>
                 )
@@ -227,6 +283,8 @@ export default function RegDeudaPage({ userRole }) {
             setConceptos(conceptosData.filter(c => c.estado && c.deuda))
             setStands(standsData)
             console.log('Stands cargados:', standsData)
+            console.log('Detalles de deuda cargados:', detallesData)
+            console.log('Ejemplo de inquilino_activo:', detallesData[0]?.inquilino_activo)
         } catch (error) {
             toast.error(error.message)
             console.error('Error:', error)
@@ -238,6 +296,79 @@ export default function RegDeudaPage({ userRole }) {
     useEffect(() => {
         fetchData()
     }, [])
+
+    // Función para obtener inquilinos activos de todos los stands
+    const fetchInquilinosActivos = useCallback(async () => {
+        if (!loteData.idconcepto_deuda) return
+        
+        try {
+            const concepto = conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)
+            if (!concepto?.inquilinopaga) {
+                setInquilinosActivos({})
+                setInquilinosBorrados({}) // Limpiar inquilinos borrados cuando no es inquilinopaga
+                return
+            }
+
+            const inquilinosData = {}
+            for (const stand of stands) {
+                try {
+                    const response = await fetch(`/api/inquilino-stand?idstand=${stand.idstand}`)
+                    if (response.ok) {
+                        const data = await response.json()
+                        const inquilinoActivo = data.find(item => item.actual)
+                        if (inquilinoActivo) {
+                            inquilinosData[stand.idstand] = inquilinoActivo.inquilino
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error fetching inquilino for stand ${stand.idstand}:`, error)
+                }
+            }
+            setInquilinosActivos(inquilinosData)
+        } catch (error) {
+            console.error('Error fetching inquilinos activos:', error)
+        }
+    }, [loteData.idconcepto_deuda, conceptos, stands])
+
+    // Función para quitar inquilino de un stand específico
+    const removeInquilinoFromStand = (idstand) => {
+        setInquilinosActivos(prev => {
+            const newState = { ...prev }
+            // Guardar el inquilino borrado antes de eliminarlo
+            if (newState[idstand]) {
+                setInquilinosBorrados(prevBorrados => ({
+                    ...prevBorrados,
+                    [idstand]: newState[idstand]
+                }))
+            }
+            delete newState[idstand]
+            return newState
+        })
+    }
+
+    // Función para restaurar inquilino de un stand específico
+    const restoreInquilinoFromStand = (idstand) => {
+        setInquilinosBorrados(prev => {
+            const newState = { ...prev }
+            // Restaurar el inquilino borrado
+            if (newState[idstand]) {
+                setInquilinosActivos(prevActivos => ({
+                    ...prevActivos,
+                    [idstand]: newState[idstand]
+                }))
+            }
+            delete newState[idstand]
+            return newState
+        })
+    }
+
+    // Efecto para obtener inquilinos activos cuando cambie el concepto
+    useEffect(() => {
+        if (loteData.idconcepto_deuda && stands.length > 0) {
+            fetchInquilinosActivos()
+        }
+    }, [loteData.idconcepto_deuda, stands, fetchInquilinosActivos])
+
 
     // Manejar ordenamiento
     const handleSort = (field) => {
@@ -261,6 +392,7 @@ export default function RegDeudaPage({ userRole }) {
                 detalle.concepto?.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
                 detalle.stand?.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
                 detalle.stand?.client?.nombre.toLowerCase().includes(filter.toLowerCase()) ||
+                (detalle.inquilino_activo?.nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
                 format(new Date(detalle.fechadeudaStand), 'dd/MM/yyyy', { locale: es }).includes(filter.toLowerCase())
             
             return yearMatches && textMatches
@@ -276,6 +408,8 @@ export default function RegDeudaPage({ userRole }) {
                 comparison = (a.concepto?.descripcion || '').localeCompare(b.concepto?.descripcion || '')
             } else if (sortField === 'stand') {
                 comparison = (a.stand?.descripcion || '').localeCompare(b.stand?.descripcion || '')
+            } else if (sortField === 'inquilino') {
+                comparison = (a.inquilino_activo?.nombre || '').localeCompare(b.inquilino_activo?.nombre || '')
             } else if (sortField === 'monto') {
                 comparison = Number(a.monto) - Number(b.monto)
             } else if (sortField === 'createdAt') {
@@ -349,6 +483,13 @@ export default function RegDeudaPage({ userRole }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        
+        // Validación: Si "Inquilino Paga" está activado, el stand es requerido
+        if (inquilinoPaga && !currentDetalle.idstand) {
+            toast.error('Debe seleccionar un stand para activar "Inquilino Paga"')
+            return
+        }
+        
         setIsSubmitting(true)
 
         try {
@@ -364,8 +505,11 @@ export default function RegDeudaPage({ userRole }) {
                 fechadeudaStand: currentDetalle.fechadeudaStand,
                 monto: parseFloat(currentDetalle.monto),
                 mora: parseFloat(currentDetalle.mora || 0),
-                estado: currentDetalle.estado
+                estado: currentDetalle.estado,
+                idinquilino_activo: currentDetalle.idinquilino_activo
             }
+            
+            console.log('Datos a enviar:', detalleData)
 
             const res = await fetch(url, {
                 method,
@@ -376,13 +520,16 @@ export default function RegDeudaPage({ userRole }) {
             if (!res.ok) throw new Error(await res.text())
 
             const result = await res.json()
+            
+            console.log('Respuesta de la API:', result)
 
             setDetalles(prev => {
-                if (isEditing) {
-                    return prev.map(d => d.idregdeuda_detalle === result.idregdeuda_detalle ? result : d)
-                } else {
-                    return [...prev, result]
-                }
+                const newDetalles = isEditing
+                    ? prev.map(d => d.idregdeuda_detalle === result.idregdeuda_detalle ? result : d)
+                    : [...prev, result]
+                
+                console.log('Estado actualizado:', newDetalles)
+                return newDetalles
             })
 
             toast.success(
@@ -407,8 +554,14 @@ export default function RegDeudaPage({ userRole }) {
             fechadeudaStand: new Date(detalle.fechadeudaStand),
             monto: parseFloat(detalle.monto),
             mora: parseFloat(detalle.mora || 0),
-            estado: Boolean(detalle.estado)
+            estado: Boolean(detalle.estado),
+            idinquilino_activo: detalle.idinquilino_activo || null
         })
+        
+        // Configurar el toggle según si hay inquilino activo
+        setInquilinoPaga(!!detalle.idinquilino_activo)
+        setInquilinoActivo(detalle.inquilino_activo || null)
+        
         onOpen()
     }
 
@@ -419,8 +572,11 @@ export default function RegDeudaPage({ userRole }) {
             fechadeudaStand: new Date(),
             monto: 0,
             mora: 0,
-            estado: true
+            estado: true,
+            idinquilino_activo: null
         })
+        setInquilinoPaga(false)
+        setInquilinoActivo(null)
         onOpen()
     }
 
@@ -432,8 +588,12 @@ export default function RegDeudaPage({ userRole }) {
             moraGeneral: 0,
             detalles: []
         })
+        setInquilinosActivos({}) // Limpiar inquilinos activos
+        setInquilinosBorrados({}) // Limpiar inquilinos borrados
         onLoteOpen()
     }
+
+
 
     // Manejar cambios en montos y mora del lote
     const handleMontoChange = (idstand, field, value) => {
@@ -549,8 +709,12 @@ export default function RegDeudaPage({ userRole }) {
             }
 
             // Crear múltiples detalles de deuda
-            const promises = detallesValidos.map(detalle => 
-                fetch('/api/reg-deuda-detalle', {
+            const promises = detallesValidos.map(async detalle => {
+                // Obtener el inquilino activo del estado local
+                const concepto = conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)
+                const idinquilino_activo = concepto?.inquilinopaga ? inquilinosActivos[detalle.idstand]?.idinquilino || null : null
+
+                return fetch('/api/reg-deuda-detalle', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -559,14 +723,17 @@ export default function RegDeudaPage({ userRole }) {
                         fechadeudaStand: loteData.fechadeudaStand,
                         monto: parseFloat(detalle.monto || 0),
                         mora: parseFloat(detalle.mora || 0),
-                        estado: true
+                        estado: true,
+                        idinquilino_activo: idinquilino_activo
                     })
                 })
-            )
+            })
 
             await Promise.all(promises)
 
             toast.success(`${detallesValidos.length} detalles de deuda creados correctamente`)
+            setInquilinosActivos({}) // Limpiar inquilinos activos
+            setInquilinosBorrados({}) // Limpiar inquilinos borrados
             onLoteOpenChange()
             fetchData() // Recargar datos
         } catch (error) {
@@ -586,18 +753,12 @@ export default function RegDeudaPage({ userRole }) {
     }
 
     return (
-        <div className="p-4 max-w-7xl mx-auto">
+        <div className="p-4 w-full">
             <ToastContainer position="bottom-right" />
 
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Gestión de Deudas por Stand</h1>
-                    <p className="text-sm text-gray-400 mt-1">
-                        Mostrando {filteredItems.length} de {detalles.length} registros
-                        {yearFilter && yearFilter !== '' && ` (Filtrado por año ${yearFilter})`}
-                    </p>
-                </div>
-                <div className="flex gap-3">
+            <div className="flex items-center justify-between mb-6 gap-4">
+                <h1 className="text-2xl font-bold text-white">Gestión de Deudas por Stand</h1>
+                <div className="flex gap-3 items-center flex-shrink-0">
                     <Popover className='bg-white' isOpen={isYearOpen} onOpenChange={onYearOpenChange} placement="bottom-start">
                         <PopoverTrigger className='bg-white'>
                             <Button
@@ -680,7 +841,7 @@ export default function RegDeudaPage({ userRole }) {
                             setFilter(e.target.value)
                             setPage(1)
                         }}
-                        className="w-80"
+                        className="w-64"
                         isClearable
                         onClear={() => setFilter('')}
                     />
@@ -697,39 +858,43 @@ export default function RegDeudaPage({ userRole }) {
                             Limpiar Filtros
                         </Button>
                     )}
-                    <Button
-                        color="primary"
-                        onPress={initCreate}
-                    >
-                        Registro Individual
-                    </Button>
-                    <Button
-                        color="secondary"
-                        onPress={initCreateLote}
-                    >
-                        Registro por Lote
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            color="primary"
+                            onPress={initCreate}
+                        >
+                            Registro Individual
+                        </Button>
+                        <Button
+                            color="secondary"
+                            onPress={initCreateLote}
+                        >
+                            Registro por Lote
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            <Table
-                aria-label="Tabla de detalles de deuda"
-                bottomContent={
-                    <div className="flex w-full justify-center">
-                        <Pagination
-                            isCompact
-                            showControls
-                            showShadow
-                            color="primary"
-                            page={page}
-                            total={Math.ceil(filteredItems.length / rowsPerPage)}
-                            onChange={setPage}
-                        />
-                    </div>
-                }
-                classNames={{
-                    wrapper: "min-h-[400px]",
-                }}
+            <div className="w-full overflow-x-auto">
+                <Table
+                    aria-label="Tabla de detalles de deuda"
+                    bottomContent={
+                        <div className="flex w-full justify-center">
+                            <Pagination
+                                isCompact
+                                showControls
+                                showShadow
+                                color="primary"
+                                page={page}
+                                total={Math.ceil(filteredItems.length / rowsPerPage)}
+                                onChange={setPage}
+                            />
+                        </div>
+                    }
+                    classNames={{
+                        wrapper: "min-h-[400px] w-full",
+                        table: "w-full",
+                    }}
                 sortDescriptor={{
                     column: sortField,
                     direction: sortDirection === 'asc' ? 'ascending' : 'descending'
@@ -767,6 +932,7 @@ export default function RegDeudaPage({ userRole }) {
                     )}
                 </TableBody>
             </Table>
+            </div>
 
             {/* Modal para crear/editar */}
             <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="3xl" scrollBehavior="inside">
@@ -781,7 +947,8 @@ export default function RegDeudaPage({ userRole }) {
                             </ModalHeader>
                             <Divider />
                             <ModalBody className="py-6 gap-6 min-h-[500px]">
-                                <form id="detalle-form" onSubmit={handleSubmit} className="space-y-4">
+                                <form id="detalle-form" onSubmit={handleSubmit} className="space-y-6">
+                                    {/* Primera fila: Concepto y Stand */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <Autocomplete
                                             label="Concepto de Deuda"
@@ -811,16 +978,36 @@ export default function RegDeudaPage({ userRole }) {
                                             placeholder="Buscar stand..."
                                             defaultItems={stands}
                                             selectedKey={currentDetalle.idstand ? currentDetalle.idstand.toString() : null}
-                                            onSelectionChange={(key) => {
+                                            onSelectionChange={async (key) => {
                                                 console.log('Stand seleccionado:', key);
+                                                const idstand = key ? parseInt(key) : '';
                                                 setCurrentDetalle(prev => ({
                                                     ...prev,
-                                                    idstand: key ? parseInt(key) : ''
+                                                    idstand
                                                 }));
+                                                
+                                                // Si hay un stand seleccionado, buscar el inquilino activo
+                                                if (idstand) {
+                                                    try {
+                                                        const res = await fetch(`/api/inquilino-stand?idstand=${idstand}`)
+                                                        if (res.ok) {
+                                                            const inquilinoStands = await res.json()
+                                                            const inquilinoActivo = inquilinoStands.find(is => is.actual === true)
+                                                            setInquilinoActivo(inquilinoActivo?.inquilino || null)
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Error obteniendo inquilino activo:', error)
+                                                        setInquilinoActivo(null)
+                                                    }
+                                                } else {
+                                                    setInquilinoActivo(null)
+                                                }
                                             }}
-                                            isRequired
+                                            isRequired={inquilinoPaga}
                                             allowsCustomValue={false}
                                             isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
+                                            color={inquilinoPaga && !currentDetalle.idstand ? "danger" : "default"}
+                                            description={inquilinoPaga && !currentDetalle.idstand ? "Stand requerido cuando Inquilino Paga está activado" : ""}
                                         >
                                             {(stand) => (
                                                 <AutocompleteItem key={stand.idstand.toString()} textValue={`${stand.descripcion} - ${stand.client?.nombre || 'Sin cliente'}`}>
@@ -828,15 +1015,21 @@ export default function RegDeudaPage({ userRole }) {
                                                 </AutocompleteItem>
                                             )}
                                         </Autocomplete>
+                                    </div>
 
+                                    {/* Segunda fila: Monto y Mora */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <Input
                                             type="number"
                                             label="Monto"
-                                            value={currentDetalle.monto}
-                                            onChange={(e) => setCurrentDetalle({
-                                                ...currentDetalle,
-                                                monto: parseFloat(e.target.value) || 0
-                                            })}
+                                            value={currentDetalle.monto === 0 ? '' : currentDetalle.monto}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setCurrentDetalle({
+                                                    ...currentDetalle,
+                                                    monto: value === '' ? 0 : parseFloat(value) || 0
+                                                });
+                                            }}
                                             startContent={<span className="text-default-400 text-small">S/.</span>}
                                             step="0.01"
                                             min="0"
@@ -847,11 +1040,14 @@ export default function RegDeudaPage({ userRole }) {
                                         <Input
                                             type="number"
                                             label="Mora (Opcional)"
-                                            value={currentDetalle.mora}
-                                            onChange={(e) => setCurrentDetalle({
-                                                ...currentDetalle,
-                                                mora: parseFloat(e.target.value) || 0
-                                            })}
+                                            value={currentDetalle.mora === 0 ? '' : currentDetalle.mora}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setCurrentDetalle({
+                                                    ...currentDetalle,
+                                                    mora: value === '' ? 0 : parseFloat(value) || 0
+                                                });
+                                            }}
                                             startContent={<span className="text-default-400 text-small">S/.</span>}
                                             step="0.01"
                                             min="0"
@@ -859,38 +1055,93 @@ export default function RegDeudaPage({ userRole }) {
                                         />
                                     </div>
 
+                                    {/* Tercera fila: Fecha y Estado */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">Fecha de Deuda</label>
-                                            <DatePicker
-                                                selected={currentDetalle.fechadeudaStand}
-                                                onChange={(date) => setCurrentDetalle({
-                                                    ...currentDetalle,
-                                                    fechadeudaStand: date
-                                                })}
-                                                dateFormat="dd/MM/yyyy"
-                                                className="w-full p-3 border rounded-lg"
-                                                placeholderText="Seleccione fecha"
-                                                showYearDropdown
-                                                dropdownMode="select"
+                                            <label className="text-sm font-medium text-gray-700">Fecha de Deuda</label>
+                                            <input
+                                                type="date"
+                                                value={currentDetalle.fechadeudaStand ? currentDetalle.fechadeudaStand.toISOString().split('T')[0] : ''}
+                                                onChange={(e) => {
+                                                    // Corregir el problema de zona horaria
+                                                    const [year, month, day] = e.target.value.split('-').map(Number);
+                                                    const date = new Date(year, month - 1, day, 12, 0, 0);
+                                                    setCurrentDetalle({
+                                                        ...currentDetalle,
+                                                        fechadeudaStand: date
+                                                    });
+                                                }}
+                                                className="w-full p-3 border-2 border-default-200 rounded-lg focus:border-primary focus:outline-none transition-colors"
                                                 disabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                             />
                                         </div>
 
-                                        <div className="flex flex-col gap-4 space-y-2">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-gray-700">Estado</label>
+                                            <div className="pt-2">
+                                                <Switch
+                                                    isSelected={currentDetalle.estado}
+                                                    onValueChange={(value) => setCurrentDetalle({
+                                                        ...currentDetalle,
+                                                        estado: value
+                                                    })}
+                                                    isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
+                                                >
+                                                    Estado Activo
+                                                </Switch>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Cuarta fila: Inquilino Paga */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
                                             <Switch
-                                                isSelected={currentDetalle.estado}
-                                                onValueChange={(value) => setCurrentDetalle({
-                                                    ...currentDetalle,
-                                                    estado: value
-                                                })}
+                                                isSelected={inquilinoPaga}
+                                                onValueChange={(value) => {
+                                                    setInquilinoPaga(value)
+                                                    if (!value) {
+                                                        setCurrentDetalle(prev => ({
+                                                            ...prev,
+                                                            idinquilino_activo: null
+                                                        }))
+                                                    } else if (currentDetalle.idstand && inquilinoActivo) {
+                                                        setCurrentDetalle(prev => ({
+                                                            ...prev,
+                                                            idinquilino_activo: inquilinoActivo.idinquilino
+                                                        }))
+                                                    }
+                                                }}
                                                 isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
                                             >
-                                                Estado Activo
+                                                Inquilino Paga
                                             </Switch>
-
-
                                         </div>
+                                        
+                                        {inquilinoPaga && (
+                                            <div className="ml-6">
+                                                {!currentDetalle.idstand ? (
+                                                    <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                                                        <span className="text-sm text-red-700">
+                                                            ⚠️ <strong>Stand requerido:</strong> Debe seleccionar un stand para activar "Inquilino Paga"
+                                                        </span>
+                                                    </div>
+                                                ) : inquilinoActivo ? (
+                                                    <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                        <span className="text-sm text-green-700">
+                                                            Inquilino activo: <strong>{inquilinoActivo.nombre}</strong>
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                                                        <span className="text-sm text-red-700">
+                                                            ⚠️ No hay inquilino activo para este stand. 
+                                                            Revise en la sección Stand.
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </form>
                             </ModalBody>
@@ -938,26 +1189,29 @@ export default function RegDeudaPage({ userRole }) {
                             <Divider />
                             <ModalBody className="py-6 gap-4">
                                 <form id="lote-form" onSubmit={handleSubmitLote} className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                                        <div className="lg:col-span-2">
                                         <Card>
                                             <CardHeader className="font-bold">Cabecera</CardHeader>
                                             <CardBody className="space-y-4">
-                                                <DatePicker
-                                                    selected={loteData.fechadeudaStand}
-                                                    onChange={(date) => {
-                                                        const adjustedDate = new Date(date)
-                                                        adjustedDate.setHours(12, 0, 0, 0)
-                                                        setLoteData({
-                                                            ...loteData,
-                                                            fechadeudaStand: adjustedDate
-                                                        })
-                                                    }}
-                                                    dateFormat="dd/MM/yyyy"
-                                                    className="w-full p-2 border-2 border-default-200 rounded-lg focus:border-primary focus:outline-none transition-colors"
-                                                    placeholderText="Seleccione una fecha"
-                                                    showYearDropdown
-                                                    dropdownMode="select"
-                                                />
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium text-gray-700">Fecha de Deuda</label>
+                                                    <input
+                                                        type="date"
+                                                        value={loteData.fechadeudaStand ? loteData.fechadeudaStand.toISOString().split('T')[0] : ''}
+                                                        onChange={(e) => {
+                                                            // Corregir el problema de zona horaria
+                                                            const [year, month, day] = e.target.value.split('-').map(Number);
+                                                            const date = new Date(year, month - 1, day, 12, 0, 0);
+                                                            setLoteData({
+                                                                ...loteData,
+                                                                fechadeudaStand: date
+                                                            });
+                                                        }}
+                                                        className="w-full p-2 border-2 border-default-200 rounded-lg focus:border-primary focus:outline-none transition-colors"
+                                                        required
+                                                    />
+                                                </div>
 
                                                 <Autocomplete
                                                     label="Concepto"
@@ -983,7 +1237,7 @@ export default function RegDeudaPage({ userRole }) {
                                                     type="number"
                                                     min="0"
                                                     step="0.0001"
-                                                    value={montoGeneral}
+                                                    value={montoGeneral === 0 ? '' : montoGeneral}
                                                     onChange={(e) => handleMontoGeneralChange(e.target.value)}
                                                     startContent={<span className="text-default-400 text-small">S/.</span>}
                                                 />
@@ -993,22 +1247,40 @@ export default function RegDeudaPage({ userRole }) {
                                                     type="number"
                                                     min="0"
                                                     step="0.0001"
-                                                    value={moraGeneral}
+                                                    value={moraGeneral === 0 ? '' : moraGeneral}
                                                     onChange={(e) => handleMoraGeneralChange(e.target.value)}
                                                     startContent={<span className="text-default-400 text-small">S/.</span>}
                                                     description="Mora que se sumará al monto principal"
                                                 />
                                             </CardBody>
                                         </Card>
+                                        </div>
 
+                                        <div className="lg:col-span-3">
                                         <Card>
                                             <CardHeader className="font-bold">Detalle de Deuda por Stand</CardHeader>
                                             <CardBody>
+                                                {loteData.idconcepto_deuda && conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)?.inquilinopaga && (
+                                                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                        <div className="flex items-center gap-2 text-blue-800">
+                                                            <FaInfoCircle className="text-blue-600" />
+                                                            <span className="text-sm font-medium">
+                                                                Este concepto está configurado para que pague el inquilino. 
+                                                                Los inquilinos activos se mostrarán automáticamente. 
+                                                                Puedes quitar un inquilino haciendo clic en la "×" si no deseas registrarlo.
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="overflow-auto max-h-96">
-                                                    <Table aria-label="Tabla de detalles">
+                                                    {stands && stands.length > 0 ? (
+                                                        <Table aria-label="Tabla de detalles">
                                                         <TableHeader>
                                                             <TableColumn>Stand</TableColumn>
                                                             <TableColumn>Cliente</TableColumn>
+                                                            <TableColumn width="150px" className={loteData.idconcepto_deuda && conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)?.inquilinopaga ? '' : 'hidden'}>
+                                                                Inquilino
+                                                            </TableColumn>
                                                             <TableColumn width="150px">Monto (S/.)</TableColumn>
                                                             <TableColumn width="150px">Mora (S/.)</TableColumn>
                                                             <TableColumn width="150px">Total (S/.)</TableColumn>
@@ -1017,17 +1289,57 @@ export default function RegDeudaPage({ userRole }) {
                                                             {stands.map(stand => {
                                                                 const detalle = loteData.detalles.find(d => d.idstand === stand.idstand) || {}
                                                                 const total = (parseFloat(detalle.monto || 0) + parseFloat(detalle.mora || 0)).toFixed(4)
+                                                                const showInquilino = loteData.idconcepto_deuda && conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)?.inquilinopaga
 
                                                                 return (
                                                                     <TableRow key={stand.idstand}>
                                                                         <TableCell>{stand.descripcion}</TableCell>
                                                                         <TableCell>{stand.client?.nombre || 'Sin asignar'}</TableCell>
+                                                                        <TableCell className={showInquilino ? '' : 'hidden'}>
+                                                                            {showInquilino && (
+                                                                                <>
+                                                                                    {inquilinosActivos[stand.idstand] ? (
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <span className="text-sm">{inquilinosActivos[stand.idstand].nombre}</span>
+                                                                                            <Button
+                                                                                                isIconOnly
+                                                                                                size="sm"
+                                                                                                color="danger"
+                                                                                                variant="light"
+                                                                                                onPress={() => removeInquilinoFromStand(stand.idstand)}
+                                                                                                className="min-w-0 w-6 h-6"
+                                                                >
+                                                                                                ×
+                                                                                            </Button>
+                                                                                        </div>
+                                                                                    ) : inquilinosBorrados[stand.idstand] ? (
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <span className="text-sm text-gray-500 line-through">
+                                                                                                {inquilinosBorrados[stand.idstand].nombre}
+                                                                                            </span>
+                                                                                            <Button
+                                                                                                isIconOnly
+                                                                                                size="sm"
+                                                                                                color="success"
+                                                                                                variant="light"
+                                                                                                onPress={() => restoreInquilinoFromStand(stand.idstand)}
+                                                                                                className="min-w-0 w-6 h-6"
+                                                                                            >
+                                                                                                ↻
+                                                                                            </Button>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="text-sm text-gray-500">Sin inquilino activo</span>
+                                                                                    )}
+                                                                                </>
+                                                                            )}
+                                                                        </TableCell>
                                                                         <TableCell>
                                                                             <Input
                                                                                 type="number"
                                                                                 min="0"
                                                                                 step="0.0001"
-                                                                                value={detalle.monto || ''}
+                                                                                value={detalle.monto === 0 ? '' : detalle.monto || ''}
                                                                                 onChange={(e) => handleMontoChange(stand.idstand, 'monto', e.target.value)}
                                                                                 startContent={<span className="text-default-400 text-small">S/.</span>}
                                                                             />
@@ -1037,7 +1349,7 @@ export default function RegDeudaPage({ userRole }) {
                                                                                 type="number"
                                                                                 min="0"
                                                                                 step="0.0001"
-                                                                                value={detalle.mora || ''}
+                                                                                value={detalle.mora === 0 ? '' : detalle.mora || ''}
                                                                                 onChange={(e) => handleMontoChange(stand.idstand, 'mora', e.target.value)}
                                                                                 startContent={<span className="text-default-400 text-small">S/.</span>}
                                                                             />
@@ -1049,10 +1361,16 @@ export default function RegDeudaPage({ userRole }) {
                                                                 )
                                                             })}
                                                         </TableBody>
-                                                    </Table>
+                                                        </Table>
+                                                    ) : (
+                                                        <div className="flex justify-center items-center h-32 text-gray-500">
+                                                            <p>No hay stands disponibles</p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </CardBody>
                                         </Card>
+                                        </div>
                                     </div>
                                 </form>
                             </ModalBody>

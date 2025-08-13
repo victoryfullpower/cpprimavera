@@ -231,7 +231,8 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
         idconcepto: detalle.idconcepto,
         fechadeuda: detalle.fechadeuda,
         idregdeuda_detalle: detalle.idregdeuda_detalle,
-        montoPago: Number(detalle.montoPago)
+        montoPago: Number(detalle.montoPago),
+        inquilino_activo: detalle.inquilino_activo
       }))
     }
 
@@ -325,21 +326,21 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
     
     const saldoDisponible = deuda.saldoPendiente;
     
+    const nuevoDetalle = {
+      idconcepto: deuda.idconcepto_deuda,
+      concepto: deuda.concepto,
+      fechadeuda: deuda.fechadeudaStand,
+      idregdeuda_detalle: deuda.idregdeuda_detalle,
+      montoDeuda: deuda.monto,
+      totalPagado: deuda.totalPagado || 0,
+      saldoPendiente: saldoDisponible,
+      montoPago: saldoDisponible,
+      inquilino_activo: deuda.inquilino_activo
+    };
+    
     setForm(prev => ({
       ...prev,
-      detalles: [
-        ...prev.detalles,
-        {
-          idconcepto: deuda.idconcepto_deuda,
-          concepto: deuda.concepto,
-          fechadeuda: deuda.fechadeudaStand,
-          idregdeuda_detalle: deuda.idregdeuda_detalle,
-          montoDeuda: deuda.monto,
-          totalPagado: deuda.totalPagado || 0,
-          saldoPendiente: saldoDisponible,
-          montoPago: saldoDisponible
-        }
-      ]
+      detalles: [...prev.detalles, nuevoDetalle]
     }));
     
     setDeudas(prev => prev.filter(d => d.idregdeuda_detalle !== deuda.idregdeuda_detalle));
@@ -497,6 +498,12 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                   <TableHeader>
                     <TableColumn>Concepto</TableColumn>
                     <TableColumn>Fecha</TableColumn>
+                    <TableColumn>
+                      <div className="flex items-center gap-1">
+                        <span>Inquilino</span>
+                        <span className="text-xs text-gray-400 cursor-help" title="Muestra el inquilino activo del stand o si el concepto está configurado para que pague el inquilino">ⓘ</span>
+                      </div>
+                    </TableColumn>
                     <TableColumn>M. Deuda</TableColumn>
                     <TableColumn>Pagado</TableColumn>
                     <TableColumn>Saldo</TableColumn>
@@ -507,6 +514,34 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                       <TableRow key={deuda.idregdeuda_detalle}>
                         <TableCell>{deuda.concepto?.descripcion || 'Concepto no disponible'}</TableCell>
                         <TableCell>{new Date(deuda.fechadeudaStand).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {(() => {
+                            if (deuda.inquilino_activo) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-green-600">
+                                    {deuda.inquilino_activo.nombre}
+                                  </span>
+                                  <span className="text-xs text-green-500 bg-green-50 px-2 py-1 rounded-full">
+                                    Inquilino
+                                  </span>
+                                </div>
+                              );
+                            } else if (deuda.concepto?.inquilinopaga) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
+                                    Concepto: Inquilino Paga
+                                  </span>
+                                  <span className="text-xs text-orange-500">
+                                    (Sin inquilino)
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return <span className="text-gray-400">-</span>;
+                          })()}
+                        </TableCell>
                         <TableCell>S/. {deuda.monto.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.totalPagado.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.saldoPendiente.toFixed(2)}</TableCell>
@@ -546,6 +581,12 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                   <TableHeader>
                     <TableColumn>Concepto</TableColumn>
                     <TableColumn>Fecha Deuda</TableColumn>
+                    <TableColumn>
+                      <div className="flex items-center gap-1">
+                        <span>Inquilino</span>
+                        <span className="text-xs text-gray-400 cursor-help" title="Muestra el inquilino activo del stand o si el concepto está configurado para que pague el inquilino">ⓘ</span>
+                      </div>
+                    </TableColumn>
                     <TableColumn>M.Deuda</TableColumn>
                     <TableColumn>M.Pago</TableColumn>
                     <TableColumn>Acción</TableColumn>
@@ -558,6 +599,34 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                         </TableCell>
                         <TableCell>
                           {new Date(detalle.fechadeuda).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            if (detalle.inquilino_activo) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-green-600">
+                                    {detalle.inquilino_activo.nombre}
+                                  </span>
+                                  <span className="text-xs text-green-500 bg-green-50 px-2 py-1 rounded-full">
+                                    Inquilino
+                                  </span>
+                                </div>
+                              );
+                            } else if (detalle.concepto?.inquilinopaga) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
+                                    Concepto: Inquilino Paga
+                                  </span>
+                                  <span className="text-xs text-orange-500">
+                                    (Sin inquilino)
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return <span className="text-gray-400">-</span>;
+                          })()}
                         </TableCell>
                         <TableCell>
                           <span className="text-default-600">
@@ -658,6 +727,14 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
 
       {reciboGuardado && !recibo && (
         <div style={{ display: 'none' }}>
+          {/* Debug temporal: ver qué datos se pasan */}
+          {console.log('=== DEBUG FORM RECIBO - ANTES DE IMPRIMIR ===')}
+          {console.log('form.detalles:', form.detalles)}
+          {console.log('form.detalles con inquilino:', form.detalles?.map(det => ({
+            concepto: det.concepto?.descripcion,
+            inquilino_activo: det.inquilino_activo,
+            idregdeuda_detalle: det.idregdeuda_detalle
+          })))}
           <ReciboPrint
             recibo={reciboGuardado}
             empresa={empresa}

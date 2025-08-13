@@ -37,7 +37,8 @@ export default function ConceptosDeudaPage() {
     const [currentConcepto, setCurrentConcepto] = useState({
         descripcion: '',
         estado: true,
-        deuda: false
+        deuda: false,
+        inquilinopaga: false
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const rowsPerPage = 10
@@ -124,7 +125,8 @@ export default function ConceptosDeudaPage() {
                 body: JSON.stringify({
                     descripcion: currentConcepto.descripcion,
                     estado: currentConcepto.estado,
-                    deuda: currentConcepto.deuda
+                    deuda: currentConcepto.deuda,
+                    inquilinopaga: currentConcepto.inquilinopaga
                 })
             })
 
@@ -199,7 +201,8 @@ export default function ConceptosDeudaPage() {
                             setCurrentConcepto({
                                 descripcion: '',
                                 estado: true,
-                                deuda: false
+                                deuda: false,
+                                inquilinopaga: false
                             })
                             onOpen()
                         }}
@@ -234,6 +237,7 @@ export default function ConceptosDeudaPage() {
                     <TableColumn key="descripcion">Descripción</TableColumn>
                     <TableColumn key="estado" width="120px">Estado</TableColumn>
                     <TableColumn key="deuda" width="120px">Es Deuda</TableColumn>
+                    <TableColumn key="inquilinopaga" width="120px">Inquilino Paga</TableColumn>
                     <TableColumn key="creadoPor">Creado por</TableColumn>
                     <TableColumn key="actualizadoPor">Actualizado por</TableColumn>
                     <TableColumn key="acciones" width="180px">Acciones</TableColumn>
@@ -267,6 +271,15 @@ export default function ConceptosDeudaPage() {
                                 </Chip>
                             </TableCell>
                             <TableCell>
+                                <Chip
+                                    color={item.inquilinopaga ? "success" : "default"}
+                                    variant="flat"
+                                    size="sm"
+                                >
+                                    {item.inquilinopaga ? "Sí" : "No"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>
                                 {item.createdBy?.username || 'Sistema'}
                                 <p className="text-xs text-gray-400">
                                     {new Date(item.createdAt).toLocaleDateString()}
@@ -286,7 +299,10 @@ export default function ConceptosDeudaPage() {
                                             variant="flat"
                                             color="primary"
                                             onPress={() => {
-                                                setCurrentConcepto(item)
+                                                setCurrentConcepto({
+                                                    ...item,
+                                                    inquilinopaga: item.inquilinopaga || false
+                                                })
                                                 onOpen()
                                             }}
                                         >
@@ -336,6 +352,7 @@ export default function ConceptosDeudaPage() {
                     <TableColumn key="descripcion">Descripción</TableColumn>
                     <TableColumn key="estado" width="120px">Estado</TableColumn>
                     <TableColumn key="deuda" width="120px">Es Deuda</TableColumn>
+                    <TableColumn key="inquilinopaga" width="120px">Inquilino Paga</TableColumn>
                     <TableColumn key="creadoPor">Creado por</TableColumn>
                     <TableColumn key="actualizadoPor">Actualizado por</TableColumn>
                 </TableHeader>
@@ -365,6 +382,15 @@ export default function ConceptosDeudaPage() {
                                     size="sm"
                                 >
                                     {item.deuda ? "Sí" : "No"}
+                                </Chip>
+                            </TableCell>
+                            <TableCell>
+                                <Chip
+                                    color={item.inquilinopaga ? "success" : "default"}
+                                    variant="flat"
+                                    size="sm"
+                                >
+                                    {item.inquilinopaga ? "Sí" : "No"}
                                 </Chip>
                             </TableCell>
                             <TableCell>
@@ -431,6 +457,18 @@ export default function ConceptosDeudaPage() {
                                             }}
                                         >
                                             Es Deuda
+                                        </Switch>
+
+                                        <Switch
+                                            isSelected={currentConcepto.inquilinopaga}
+                                            onValueChange={(value) => {
+                                                setCurrentConcepto({
+                                                    ...currentConcepto,
+                                                    inquilinopaga: value
+                                                })
+                                            }}
+                                        >
+                                            Inquilino Paga
                                         </Switch>
                                     </div>
                                 </form>
