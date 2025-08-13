@@ -259,7 +259,7 @@ export default function RegDeudaPage({ userRole }) {
             default:
                 return null
         }
-    }, [session.user.role])
+    }, [session.user.role, initEdit])
 
     // Cargar datos
     const fetchData = async () => {
@@ -1123,7 +1123,7 @@ export default function RegDeudaPage({ userRole }) {
                                                 {!currentDetalle.idstand ? (
                                                     <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
                                                         <span className="text-sm text-red-700">
-                                                            ⚠️ <strong>Stand requerido:</strong> Debe seleccionar un stand para activar "Inquilino Paga"
+                                                            ⚠️ <strong>Stand requerido:</strong> Debe seleccionar un stand para activar &quot;Inquilino Paga&quot;
                                                         </span>
                                                     </div>
                                                 ) : inquilinoActivo ? (
@@ -1267,7 +1267,7 @@ export default function RegDeudaPage({ userRole }) {
                                                             <span className="text-sm font-medium">
                                                                 Este concepto está configurado para que pague el inquilino. 
                                                                 Los inquilinos activos se mostrarán automáticamente. 
-                                                                Puedes quitar un inquilino haciendo clic en la "×" si no deseas registrarlo.
+                                                                Puedes quitar un inquilino haciendo clic en la &times; si no deseas registrarlo.
                                                             </span>
                                                         </div>
                                                     </div>
@@ -1309,7 +1309,7 @@ export default function RegDeudaPage({ userRole }) {
                                                                                                 onPress={() => removeInquilinoFromStand(stand.idstand)}
                                                                                                 className="min-w-0 w-6 h-6"
                                                                 >
-                                                                                                ×
+                                                                                                &times;
                                                                                             </Button>
                                                                                         </div>
                                                                                     ) : inquilinosBorrados[stand.idstand] ? (
@@ -1325,7 +1325,7 @@ export default function RegDeudaPage({ userRole }) {
                                                                                                 onPress={() => restoreInquilinoFromStand(stand.idstand)}
                                                                                                 className="min-w-0 w-6 h-6"
                                                                                             >
-                                                                                                ↻
+                                                                                                &#8635;
                                                                                             </Button>
                                                                                         </div>
                                                                                     ) : (
