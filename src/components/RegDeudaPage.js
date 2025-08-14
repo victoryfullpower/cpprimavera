@@ -118,6 +118,26 @@ export default function RegDeudaPage({ userRole }) {
         return baseColumns
     }, [])
 
+    // Función para editar un detalle
+    const initEdit = (detalle) => {
+        setCurrentDetalle({
+            idregdeuda_detalle: detalle.idregdeuda_detalle,
+            idconcepto_deuda: parseInt(detalle.idconcepto_deuda),
+            idstand: parseInt(detalle.idstand),
+            fechadeudaStand: new Date(detalle.fechadeudaStand),
+            monto: parseFloat(detalle.monto),
+            mora: parseFloat(detalle.mora || 0),
+            estado: Boolean(detalle.estado),
+            idinquilino_activo: detalle.idinquilino_activo || null
+        })
+        
+        // Configurar el toggle según si hay inquilino activo
+        setInquilinoPaga(!!detalle.idinquilino_activo)
+        setInquilinoActivo(detalle.inquilino_activo || null)
+        
+        onOpen()
+    }
+
     // Función para renderizar celdas
     const renderCell = useCallback((item, columnKey) => {
         switch (columnKey) {
@@ -544,25 +564,6 @@ export default function RegDeudaPage({ userRole }) {
         } finally {
             setIsSubmitting(false)
         }
-    }
-
-    const initEdit = (detalle) => {
-        setCurrentDetalle({
-            idregdeuda_detalle: detalle.idregdeuda_detalle,
-            idconcepto_deuda: parseInt(detalle.idconcepto_deuda),
-            idstand: parseInt(detalle.idstand),
-            fechadeudaStand: new Date(detalle.fechadeudaStand),
-            monto: parseFloat(detalle.monto),
-            mora: parseFloat(detalle.mora || 0),
-            estado: Boolean(detalle.estado),
-            idinquilino_activo: detalle.idinquilino_activo || null
-        })
-        
-        // Configurar el toggle según si hay inquilino activo
-        setInquilinoPaga(!!detalle.idinquilino_activo)
-        setInquilinoActivo(detalle.inquilino_activo || null)
-        
-        onOpen()
     }
 
     const initCreate = () => {
