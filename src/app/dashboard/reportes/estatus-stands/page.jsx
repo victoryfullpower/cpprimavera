@@ -173,12 +173,57 @@ export default function EstatusStandsPage() {
         )
     }
 
-    // Obtener deudas del inquilino (conceptos donde inquilinopaga = true)
+    // Obtener deudas del inquilino (conceptos donde inquilinopaga = true Y tienen idinquilino_activo asignado)
     const getDeudasInquilino = (idstand) => {
         return deudas.filter(deuda => 
             deuda.idstand === idstand && 
             deuda.concepto && 
-            deuda.concepto.inquilinopaga
+            deuda.concepto.inquilinopaga &&
+            deuda.idinquilino_activo // Solo deudas que tengan inquilino asignado
+        )
+    }
+
+    // Obtener todos los inquilinos únicos que han tenido deudas en este stand
+    const getInquilinosConDeudas = (idstand) => {
+        const deudasInquilino = getDeudasInquilino(idstand)
+        const inquilinosIds = [...new Set(deudasInquilino.map(deuda => deuda.idinquilino_activo))]
+        
+        // Obtener información completa de cada inquilino
+        const inquilinosConInfo = []
+        for (const idinquilino of inquilinosIds) {
+            if (idinquilino) {
+                // Buscar la primera deuda de este inquilino para obtener su información
+                const primeraDeuda = deudasInquilino.find(deuda => deuda.idinquilino_activo === idinquilino)
+                if (primeraDeuda && primeraDeuda.inquilino_activo) {
+                    inquilinosConInfo.push({
+                        idinquilino: idinquilino,
+                        nombre: primeraDeuda.inquilino_activo.nombre,
+                        esActivo: idinquilino === getInquilinoActivo(idstand)?.idinquilino
+                    })
+                }
+            }
+        }
+        
+        return inquilinosConInfo
+    }
+
+    // Obtener deudas de un inquilino específico
+    const getDeudasPorInquilino = (idstand, idinquilino) => {
+        return deudas.filter(deuda => 
+            deuda.idstand === idstand && 
+            deuda.concepto && 
+            deuda.concepto.inquilinopaga &&
+            deuda.idinquilino_activo === idinquilino
+        )
+    }
+
+    // Obtener deudas pendientes de asignación (conceptos donde inquilinopaga = true pero NO tienen idinquilino_activo)
+    const getDeudasPendientesAsignacion = (idstand) => {
+        return deudas.filter(deuda => 
+            deuda.idstand === idstand && 
+            deuda.concepto && 
+            deuda.concepto.inquilinopaga &&
+            !deuda.idinquilino_activo // Deudas que NO tienen inquilino asignado
         )
     }
 
@@ -202,6 +247,16 @@ export default function EstatusStandsPage() {
         }, 0)
     }
 
+    // Calcular total de deudas de un inquilino específico
+    const getTotalDeudasPorInquilino = (idstand, idinquilino) => {
+        const deudasInquilino = getDeudasPorInquilino(idstand, idinquilino)
+        return deudasInquilino.reduce((total, deuda) => {
+            const monto = parseFloat(deuda.monto) || 0
+            const mora = parseFloat(deuda.mora || 0)
+            return total + monto + mora
+        }, 0)
+    }
+
     // Calcular total pagado del cliente
     const getTotalPagadoCliente = (idstand) => {
         const deudasCliente = getDeudasCliente(idstand)
@@ -213,6 +268,14 @@ export default function EstatusStandsPage() {
     // Calcular total pagado del inquilino
     const getTotalPagadoInquilino = (idstand) => {
         const deudasInquilino = getDeudasInquilino(idstand)
+        return deudasInquilino.reduce((total, deuda) => {
+            return total + (Number(deuda.totalPagado) || 0)
+        }, 0)
+    }
+
+    // Calcular total pagado de un inquilino específico
+    const getTotalPagadoPorInquilino = (idstand, idinquilino) => {
+        const deudasInquilino = getDeudasPorInquilino(idstand, idinquilino)
         return deudasInquilino.reduce((total, deuda) => {
             return total + (Number(deuda.totalPagado) || 0)
         }, 0)
@@ -574,18 +637,15 @@ export default function EstatusStandsPage() {
                                             )}
                                         </div>
 
-                                        {/* Deudas del Inquilino */}
+                                        {/* Deudas de Todos los Inquilinos */}
                                         <div className="space-y-4">
                                             <h4 className="text-lg font-semibold text-purple-600 border-b border-purple-200 pb-2">
-                                                Deudas del Inquilino
+                                                Deudas de Todos los Inquilinos
                                             </h4>
-                                            {getInquilinoActivo(selectedStandForDetail.idstand) ? (
+                                            
+                                            {getInquilinosConDeudas(selectedStandForDetail.idstand).length > 0 ? (
                                                 <>
-                                                    <div className="p-3 bg-purple-50 rounded-lg">
-                                                        <p className="text-sm text-purple-700">
-                                                            <strong>Inquilino Activo:</strong> {getInquilinoActivo(selectedStandForDetail.idstand).nombre}
-                                                        </p>
-                                                    </div>
+                                                    {/* Resumen general de deudas de inquilinos */}
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-purple-50 rounded-lg">
                                                         <div className="text-center">
                                                             <div className="text-xl font-bold text-red-600">
@@ -606,10 +666,117 @@ export default function EstatusStandsPage() {
                                                             <div className="text-sm text-gray-600">Saldo Pendiente</div>
                                                         </div>
                                                     </div>
-                                                    
-                                                                                                {/* Tabla de deudas del inquilino */}
-                                            {getDeudasInquilino(selectedStandForDetail.idstand).length > 0 ? (
-                                                <Table aria-label="Deudas del inquilino" className="min-h-[200px]">
+
+                                                    {/* Lista de inquilinos con sus deudas */}
+                                                    {getInquilinosConDeudas(selectedStandForDetail.idstand).map((inquilino, index) => {
+                                                        const deudasInquilino = getDeudasPorInquilino(selectedStandForDetail.idstand, inquilino.idinquilino)
+                                                        const totalDeudas = getTotalDeudasPorInquilino(selectedStandForDetail.idstand, inquilino.idinquilino)
+                                                        const totalPagado = getTotalPagadoPorInquilino(selectedStandForDetail.idstand, inquilino.idinquilino)
+                                                        const saldoPendiente = totalDeudas - totalPagado
+                                                        
+                                                        return (
+                                                            <div key={inquilino.idinquilino} className="space-y-3 p-4 border border-purple-200 rounded-lg">
+                                                                <div className="flex items-center justify-between">
+                                                                    <h5 className="text-md font-semibold text-purple-700">
+                                                                        {inquilino.nombre}
+                                                                        {inquilino.esActivo && (
+                                                                            <Chip color="success" variant="flat" size="sm" className="ml-2">
+                                                                                Activo
+                                                                            </Chip>
+                                                                        )}
+                                                                    </h5>
+                                                                    <div className="text-sm text-gray-500">
+                                                                        ID: {inquilino.idinquilino}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {/* Resumen del inquilino */}
+                                                                <div className="grid grid-cols-3 gap-4 p-3 bg-purple-100 rounded">
+                                                                    <div className="text-center">
+                                                                        <div className="text-lg font-bold text-red-600">
+                                                                            S/. {totalDeudas.toFixed(2)}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-600">Deudas</div>
+                                                                    </div>
+                                                                    <div className="text-center">
+                                                                        <div className="text-lg font-bold text-green-600">
+                                                                            S/. {totalPagado.toFixed(2)}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-600">Pagado</div>
+                                                                    </div>
+                                                                    <div className="text-center">
+                                                                        <div className={`text-lg font-bold ${saldoPendiente > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                                                            S/. {saldoPendiente.toFixed(2)}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-600">Saldo</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Tabla de deudas del inquilino */}
+                                                                {deudasInquilino.length > 0 ? (
+                                                                    <Table aria-label={`Deudas de ${inquilino.nombre}`} className="min-h-[150px]">
+                                                                        <TableHeader>
+                                                                            <TableColumn>Concepto</TableColumn>
+                                                                            <TableColumn>Fecha</TableColumn>
+                                                                            <TableColumn>Monto</TableColumn>
+                                                                            <TableColumn>Mora</TableColumn>
+                                                                            <TableColumn>Pagado</TableColumn>
+                                                                            <TableColumn>Saldo</TableColumn>
+                                                                        </TableHeader>
+                                                                        <TableBody>
+                                                                            {deudasInquilino.map((deuda, deudaIndex) => {
+                                                                                const saldo = (parseFloat(deuda.monto) + parseFloat(deuda.mora || 0)) - parseFloat(deuda.totalPagado || 0)
+                                                                                return (
+                                                                                    <TableRow key={deudaIndex}>
+                                                                                        <TableCell>{deuda.concepto?.descripcion || 'Sin concepto'}</TableCell>
+                                                                                        <TableCell>{format(new Date(deuda.fechadeudaStand), 'dd/MM/yyyy', { locale: es })}</TableCell>
+                                                                                        <TableCell>S/. {parseFloat(deuda.monto).toFixed(2)}</TableCell>
+                                                                                        <TableCell>S/. {parseFloat(deuda.mora || 0).toFixed(2)}</TableCell>
+                                                                                        <TableCell>S/. {parseFloat(deuda.totalPagado || 0).toFixed(2)}</TableCell>
+                                                                                        <TableCell>
+                                                                                            <Chip 
+                                                                                                color={saldo > 0 ? "danger" : "success"} 
+                                                                                                variant="flat" 
+                                                                                                size="sm"
+                                                                                            >
+                                                                                                S/. {saldo.toFixed(2)}
+                                                                                            </Chip>
+                                                                                        </TableCell>
+                                                                                    </TableRow>
+                                                                                )
+                                                                            })}
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                ) : (
+                                                                    <div className="p-3 bg-gray-50 rounded text-center">
+                                                                        <p className="text-gray-500 text-sm">No hay deudas registradas para este inquilino</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </>
+                                            ) : (
+                                                <div className="p-4 bg-gray-50 rounded-lg text-center">
+                                                    <p className="text-gray-500">No hay deudas registradas para inquilinos</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Deudas Pendientes de Asignación */}
+                                        {getDeudasPendientesAsignacion(selectedStandForDetail.idstand).length > 0 && (
+                                            <div className="space-y-4">
+                                                <h4 className="text-lg font-semibold text-orange-600 border-b border-orange-200 pb-2">
+                                                    ⚠️ Deudas Pendientes de Asignación
+                                                </h4>
+                                                <div className="p-3 bg-orange-50 rounded-lg">
+                                                    <p className="text-sm text-orange-700">
+                                                        <strong>Atención:</strong> Estas deudas están configuradas para que pague el inquilino, 
+                                                        pero no tienen inquilino asignado. Deben ser asignadas a un inquilino específico.
+                                                    </p>
+                                                </div>
+                                                
+                                                <Table aria-label="Deudas pendientes de asignación" className="min-h-[200px]">
                                                     <TableHeader>
                                                         <TableColumn>Concepto</TableColumn>
                                                         <TableColumn>Fecha</TableColumn>
@@ -619,7 +786,7 @@ export default function EstatusStandsPage() {
                                                         <TableColumn>Saldo</TableColumn>
                                                     </TableHeader>
                                                     <TableBody>
-                                                        {getDeudasInquilino(selectedStandForDetail.idstand).map((deuda, index) => {
+                                                        {getDeudasPendientesAsignacion(selectedStandForDetail.idstand).map((deuda, index) => {
                                                             const saldo = (parseFloat(deuda.monto) + parseFloat(deuda.mora || 0)) - parseFloat(deuda.totalPagado || 0)
                                                             return (
                                                                 <TableRow key={index}>
@@ -630,7 +797,7 @@ export default function EstatusStandsPage() {
                                                                     <TableCell>S/. {parseFloat(deuda.totalPagado || 0).toFixed(2)}</TableCell>
                                                                     <TableCell>
                                                                         <Chip 
-                                                                            color={saldo > 0 ? "danger" : "success"} 
+                                                                            color="warning" 
                                                                             variant="flat" 
                                                                             size="sm"
                                                                         >
@@ -642,18 +809,8 @@ export default function EstatusStandsPage() {
                                                         })}
                                                     </TableBody>
                                                 </Table>
-                                            ) : (
-                                                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                                                    <p className="text-gray-500">No hay deudas registradas para el inquilino</p>
-                                                </div>
-                                            )}
-                                                </>
-                                            ) : (
-                                                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                                                    <p className="text-gray-500">No hay inquilino activo asignado a este stand</p>
-                                                </div>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </ModalBody>
@@ -767,11 +924,13 @@ export default function EstatusStandsPage() {
                                 </table>
                             </div>
 
-                            {/* Deudas del Inquilino */}
+                            {/* Deudas de Todos los Inquilinos */}
                             <div className="mb-8">
-                                <h2 className="text-xl font-bold mb-4 text-purple-600">Deudas del Inquilino</h2>
-                                {getInquilinoActivo(selectedStandForDetail.idstand) ? (
+                                <h2 className="text-xl font-bold mb-4 text-purple-600">Deudas de Todos los Inquilinos</h2>
+                                
+                                {getInquilinosConDeudas(selectedStandForDetail.idstand).length > 0 ? (
                                     <>
+                                        {/* Resumen general de deudas de inquilinos */}
                                         <div className="grid grid-cols-3 gap-4 mb-4">
                                             <div className="text-center p-3 bg-purple-50 rounded">
                                                 <div className="text-lg font-bold text-red-600">S/. {getTotalDeudasInquilino(selectedStandForDetail.idstand).toFixed(2)}</div>
@@ -786,6 +945,98 @@ export default function EstatusStandsPage() {
                                                 <div className="text-sm">Saldo Pendiente</div>
                                             </div>
                                         </div>
+
+                                        {/* Lista de inquilinos con sus deudas */}
+                                        {getInquilinosConDeudas(selectedStandForDetail.idstand).map((inquilino, index) => {
+                                            const deudasInquilino = getDeudasPorInquilino(selectedStandForDetail.idstand, inquilino.idinquilino)
+                                            const totalDeudas = getTotalDeudasPorInquilino(selectedStandForDetail.idstand, inquilino.idinquilino)
+                                            const totalPagado = getTotalPagadoPorInquilino(selectedStandForDetail.idstand, inquilino.idinquilino)
+                                            const saldoPendiente = totalDeudas - totalPagado
+                                            
+                                            return (
+                                                <div key={inquilino.idinquilino} className="mb-6">
+                                                    <h3 className="text-lg font-semibold mb-3 text-purple-700 border-b border-purple-200 pb-2">
+                                                        {inquilino.nombre}
+                                                        {inquilino.esActivo && (
+                                                            <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                                (Activo)
+                                                            </span>
+                                                        )}
+                                                        <span className="ml-2 text-sm text-gray-500">ID: {inquilino.idinquilino}</span>
+                                                    </h3>
+                                                    
+                                                    {/* Resumen del inquilino */}
+                                                    <div className="grid grid-cols-3 gap-4 mb-3">
+                                                        <div className="text-center p-2 bg-purple-100 rounded">
+                                                            <div className="text-md font-bold text-red-600">S/. {totalDeudas.toFixed(2)}</div>
+                                                            <div className="text-xs text-gray-600">Deudas</div>
+                                                        </div>
+                                                        <div className="text-center p-2 bg-purple-100 rounded">
+                                                            <div className="text-md font-bold text-green-600">S/. {totalPagado.toFixed(2)}</div>
+                                                            <div className="text-xs text-gray-600">Pagado</div>
+                                                        </div>
+                                                        <div className="text-center p-2 bg-purple-100 rounded">
+                                                            <div className={`text-md font-bold ${saldoPendiente > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                                                S/. {saldoPendiente.toFixed(2)}
+                                                            </div>
+                                                            <div className="text-xs text-gray-600">Saldo</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Tabla de deudas del inquilino */}
+                                                    {deudasInquilino.length > 0 ? (
+                                                        <table className="w-full border-collapse border border-gray-300 mb-4">
+                                                            <thead>
+                                                                <tr className="bg-gray-100">
+                                                                    <th className="border border-gray-300 p-2 text-left">Concepto</th>
+                                                                    <th className="border border-gray-300 p-2 text-center">Fecha</th>
+                                                                    <th className="border border-gray-300 p-2 text-right">Monto</th>
+                                                                    <th className="border border-gray-300 p-2 text-right">Mora</th>
+                                                                    <th className="border border-gray-300 p-2 text-right">Pagado</th>
+                                                                    <th className="border border-gray-300 p-2 text-right">Saldo</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {deudasInquilino.map((deuda, deudaIndex) => {
+                                                                    const saldo = (parseFloat(deuda.monto) + parseFloat(deuda.mora || 0)) - parseFloat(deuda.totalPagado || 0)
+                                                                    return (
+                                                                        <tr key={deudaIndex}>
+                                                                            <td className="border border-gray-300 p-2">{deuda.concepto?.descripcion || 'Sin concepto'}</td>
+                                                                            <td className="border border-gray-300 p-2 text-center">{format(new Date(deuda.fechadeudaStand), 'dd/MM/yyyy', { locale: es })}</td>
+                                                                            <td className="border border-gray-300 p-2 text-right">S/. {parseFloat(deuda.monto).toFixed(2)}</td>
+                                                                            <td className="border border-gray-300 p-2 text-right">S/. {parseFloat(deuda.mora || 0).toFixed(2)}</td>
+                                                                            <td className="border border-gray-300 p-2 text-right">S/. {parseFloat(deuda.totalPagado || 0).toFixed(2)}</td>
+                                                                            <td className="border border-gray-300 p-2 text-right font-bold">S/. {saldo.toFixed(2)}</td>
+                                                                        </tr>
+                                                                    )
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    ) : (
+                                                        <div className="p-3 bg-gray-50 rounded text-center mb-4">
+                                                            <p className="text-gray-500 text-sm">No hay deudas registradas para este inquilino</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </>
+                                ) : (
+                                    <div className="p-4 bg-gray-50 rounded text-center">
+                                        <p className="text-gray-500">No hay deudas registradas para inquilinos</p>
+                                    </div>
+                                )}
+
+                                {/* Deudas Pendientes de Asignación en Impresión */}
+                                {getDeudasPendientesAsignacion(selectedStandForDetail.idstand).length > 0 && (
+                                    <div className="mb-8">
+                                        <h2 className="text-xl font-bold mb-4 text-orange-600">⚠️ Deudas Pendientes de Asignación</h2>
+                                        <div className="p-3 bg-orange-50 rounded mb-4">
+                                            <p className="text-sm text-orange-700">
+                                                <strong>Atención:</strong> Estas deudas están configuradas para que pague el inquilino, 
+                                                pero no tienen inquilino asignado. Deben ser asignadas a un inquilino específico.
+                                            </p>
+                                        </div>
                                         
                                         <table className="w-full border-collapse border border-gray-300">
                                             <thead>
@@ -799,7 +1050,7 @@ export default function EstatusStandsPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {getDeudasInquilino(selectedStandForDetail.idstand).map((deuda, index) => {
+                                                {getDeudasPendientesAsignacion(selectedStandForDetail.idstand).map((deuda, index) => {
                                                     const saldo = (parseFloat(deuda.monto) + parseFloat(deuda.mora || 0)) - parseFloat(deuda.totalPagado || 0)
                                                     return (
                                                         <tr key={index}>
@@ -812,19 +1063,8 @@ export default function EstatusStandsPage() {
                                                         </tr>
                                                     )
                                                 })}
-                                                {getDeudasInquilino(selectedStandForDetail.idstand).length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={6} className="border border-gray-300 p-4 text-center text-gray-500">
-                                                            No hay deudas registradas para el inquilino
-                                                        </td>
-                                                    </tr>
-                                                )}
                                             </tbody>
                                         </table>
-                                    </>
-                                ) : (
-                                    <div className="p-4 bg-gray-50 rounded text-center">
-                                        <p className="text-gray-500">No hay inquilino activo asignado a este stand</p>
                                     </div>
                                 )}
                             </div>

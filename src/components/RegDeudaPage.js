@@ -120,6 +120,11 @@ export default function RegDeudaPage({ userRole }) {
 
     // Función para editar un detalle
     const initEdit = (detalle) => {
+        console.log('=== INIT EDIT ===')
+        console.log('Detalle recibido:', detalle)
+        console.log('idinquilino_activo del detalle:', detalle.idinquilino_activo)
+        console.log('inquilino_activo del detalle:', detalle.inquilino_activo)
+        
         setCurrentDetalle({
             idregdeuda_detalle: detalle.idregdeuda_detalle,
             idconcepto_deuda: parseInt(detalle.idconcepto_deuda),
@@ -132,9 +137,12 @@ export default function RegDeudaPage({ userRole }) {
         })
         
         // Configurar el toggle según si hay inquilino activo
-        setInquilinoPaga(!!detalle.idinquilino_activo)
+        const tieneInquilino = !!detalle.idinquilino_activo
+        console.log('Configurando toggle inquilino paga:', tieneInquilino)
+        setInquilinoPaga(tieneInquilino)
         setInquilinoActivo(detalle.inquilino_activo || null)
         
+        console.log('=== FIN INIT EDIT ===')
         onOpen()
     }
 
@@ -389,6 +397,32 @@ export default function RegDeudaPage({ userRole }) {
         }
     }, [loteData.idconcepto_deuda, stands, fetchInquilinosActivos])
 
+    // Efecto para sincronizar el toggle inquilino paga con el currentDetalle
+    useEffect(() => {
+        if (currentDetalle.idregdeuda_detalle) { // Solo cuando se está editando
+            console.log('=== USEEFFECT SINCRONIZACIÓN ===')
+            console.log('Toggle inquilino paga:', inquilinoPaga)
+            console.log('Inquilino activo:', inquilinoActivo)
+            console.log('Stand seleccionado:', currentDetalle.idstand)
+            console.log('ID inquilino activo:', inquilinoActivo?.idinquilino)
+            
+            if (inquilinoPaga && currentDetalle.idstand && inquilinoActivo) {
+                console.log('Actualizando currentDetalle con inquilino activo:', inquilinoActivo.idinquilino)
+                setCurrentDetalle(prev => ({
+                    ...prev,
+                    idinquilino_activo: inquilinoActivo.idinquilino
+                }))
+            } else if (!inquilinoPaga) {
+                console.log('Desactivando inquilino activo')
+                setCurrentDetalle(prev => ({
+                    ...prev,
+                    idinquilino_activo: null
+                }))
+            }
+            console.log('=== FIN USEEFFECT ===')
+        }
+    }, [inquilinoPaga, inquilinoActivo, currentDetalle.idstand, currentDetalle.idregdeuda_detalle])
+
 
     // Manejar ordenamiento
     const handleSort = (field) => {
@@ -519,6 +553,12 @@ export default function RegDeudaPage({ userRole }) {
                 ? `/api/reg-deuda-detalle/${currentDetalle.idregdeuda_detalle}`
                 : '/api/reg-deuda-detalle'
 
+            // Determinar el idinquilino_activo basado en el toggle y el inquilino activo
+            let idinquilino_activo = null
+            if (inquilinoPaga && currentDetalle.idstand && inquilinoActivo) {
+                idinquilino_activo = inquilinoActivo.idinquilino
+            }
+
             const detalleData = {
                 idconcepto_deuda: parseInt(currentDetalle.idconcepto_deuda),
                 idstand: parseInt(currentDetalle.idstand),
@@ -526,10 +566,18 @@ export default function RegDeudaPage({ userRole }) {
                 monto: parseFloat(currentDetalle.monto),
                 mora: parseFloat(currentDetalle.mora || 0),
                 estado: currentDetalle.estado,
-                idinquilino_activo: currentDetalle.idinquilino_activo
+                idinquilino_activo: idinquilino_activo
             }
             
+            console.log('=== DEBUGGING INQUILINO ===')
+            console.log('Toggle inquilino paga:', inquilinoPaga)
+            console.log('Inquilino activo completo:', inquilinoActivo)
+            console.log('ID inquilino activo:', inquilinoActivo?.idinquilino)
+            console.log('Stand seleccionado:', currentDetalle.idstand)
             console.log('Datos a enviar:', detalleData)
+            console.log('Campo idinquilino_activo en detalleData:', detalleData.idinquilino_activo)
+            console.log('Tipo de idinquilino_activo:', typeof detalleData.idinquilino_activo)
+            console.log('=== FIN DEBUGGING ===')
 
             const res = await fetch(url, {
                 method,
@@ -541,11 +589,24 @@ export default function RegDeudaPage({ userRole }) {
 
             const result = await res.json()
             
-            console.log('Respuesta de la API:', result)
+            console.log('=== RESPUESTA DE LA API ===')
+            console.log('Respuesta completa:', result)
+            console.log('Campo idinquilino_activo en respuesta:', result.idinquilino_activo)
+            console.log('Tipo de idinquilino_activo en respuesta:', typeof result.idinquilino_activo)
+            console.log('=== FIN RESPUESTA ===')
 
             setDetalles(prev => {
                 const newDetalles = isEditing
-                    ? prev.map(d => d.idregdeuda_detalle === result.idregdeuda_detalle ? result : d)
+                    ? prev.map(d => {
+                        if (d.idregdeuda_detalle === result.idregdeuda_detalle) {
+                            // Asegurarse de que el resultado incluya la información del inquilino activo
+                            return {
+                                ...result,
+                                inquilino_activo: result.idinquilino_activo ? inquilinoActivo : null
+                            }
+                        }
+                        return d
+                    })
                     : [...prev, result]
                 
                 console.log('Estado actualizado:', newDetalles)
@@ -979,31 +1040,36 @@ export default function RegDeudaPage({ userRole }) {
                                             placeholder="Buscar stand..."
                                             defaultItems={stands}
                                             selectedKey={currentDetalle.idstand ? currentDetalle.idstand.toString() : null}
-                                            onSelectionChange={async (key) => {
-                                                console.log('Stand seleccionado:', key);
-                                                const idstand = key ? parseInt(key) : '';
-                                                setCurrentDetalle(prev => ({
-                                                    ...prev,
-                                                    idstand
-                                                }));
-                                                
-                                                // Si hay un stand seleccionado, buscar el inquilino activo
-                                                if (idstand) {
-                                                    try {
-                                                        const res = await fetch(`/api/inquilino-stand?idstand=${idstand}`)
-                                                        if (res.ok) {
-                                                            const inquilinoStands = await res.json()
-                                                            const inquilinoActivo = inquilinoStands.find(is => is.actual === true)
-                                                            setInquilinoActivo(inquilinoActivo?.inquilino || null)
-                                                        }
-                                                    } catch (error) {
-                                                        console.error('Error obteniendo inquilino activo:', error)
-                                                        setInquilinoActivo(null)
-                                                    }
-                                                } else {
-                                                    setInquilinoActivo(null)
-                                                }
-                                            }}
+                                                                                         onSelectionChange={async (key) => {
+                                                 console.log('Stand seleccionado:', key);
+                                                 const idstand = key ? parseInt(key) : '';
+                                                 setCurrentDetalle(prev => ({
+                                                     ...prev,
+                                                     idstand
+                                                 }));
+                                                 
+                                                 // Si hay un stand seleccionado, buscar el inquilino activo
+                                                 if (idstand) {
+                                                     try {
+                                                         console.log('Buscando inquilino activo para stand:', idstand);
+                                                         const res = await fetch(`/api/inquilino-stand?idstand=${idstand}`)
+                                                         if (res.ok) {
+                                                             const inquilinoStands = await res.json()
+                                                             console.log('Inquilinos del stand:', inquilinoStands);
+                                                             const inquilinoActivo = inquilinoStands.find(is => is.actual === true)
+                                                             console.log('Inquilino activo encontrado:', inquilinoActivo);
+                                                             setInquilinoActivo(inquilinoActivo?.inquilino || null)
+                                                             console.log('Inquilino activo establecido:', inquilinoActivo?.inquilino || null);
+                                                         }
+                                                     } catch (error) {
+                                                         console.error('Error obteniendo inquilino activo:', error)
+                                                         setInquilinoActivo(null)
+                                                     }
+                                                 } else {
+                                                     console.log('No hay stand seleccionado, limpiando inquilino activo');
+                                                     setInquilinoActivo(null)
+                                                 }
+                                             }}
                                             isRequired={inquilinoPaga}
                                             allowsCustomValue={false}
                                             isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
@@ -1097,26 +1163,39 @@ export default function RegDeudaPage({ userRole }) {
                                     {/* Cuarta fila: Inquilino Paga */}
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-3">
-                                            <Switch
-                                                isSelected={inquilinoPaga}
-                                                onValueChange={(value) => {
-                                                    setInquilinoPaga(value)
-                                                    if (!value) {
-                                                        setCurrentDetalle(prev => ({
-                                                            ...prev,
-                                                            idinquilino_activo: null
-                                                        }))
-                                                    } else if (currentDetalle.idstand && inquilinoActivo) {
-                                                        setCurrentDetalle(prev => ({
-                                                            ...prev,
-                                                            idinquilino_activo: inquilinoActivo.idinquilino
-                                                        }))
-                                                    }
-                                                }}
-                                                isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
-                                            >
-                                                Inquilino Paga
-                                            </Switch>
+                                                                                         <Switch
+                                                 isSelected={inquilinoPaga}
+                                                 onValueChange={(value) => {
+                                                     console.log('=== TOGGLE INQUILINO PAGA ===')
+                                                     console.log('Valor del toggle:', value)
+                                                     console.log('Estado anterior del toggle:', inquilinoPaga)
+                                                     console.log('Inquilino activo actual:', inquilinoActivo)
+                                                     console.log('Stand seleccionado:', currentDetalle.idstand)
+                                                     
+                                                     setInquilinoPaga(value)
+                                                     
+                                                     if (!value) {
+                                                         console.log('Desactivando toggle - limpiando idinquilino_activo')
+                                                         setCurrentDetalle(prev => ({
+                                                             ...prev,
+                                                             idinquilino_activo: null
+                                                         }))
+                                                     } else if (currentDetalle.idstand && inquilinoActivo) {
+                                                         console.log('Activando toggle - estableciendo idinquilino_activo:', inquilinoActivo.idinquilino)
+                                                         setCurrentDetalle(prev => ({
+                                                             ...prev,
+                                                             idinquilino_activo: inquilinoActivo.idinquilino
+                                                         }))
+                                                     } else {
+                                                         console.log('Toggle activado pero no hay stand o inquilino activo')
+                                                     }
+                                                     
+                                                     console.log('=== FIN TOGGLE ===')
+                                                 }}
+                                                 isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
+                                             >
+                                                 Inquilino Paga
+                                             </Switch>
                                         </div>
                                         
                                         {inquilinoPaga && (

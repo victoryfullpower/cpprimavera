@@ -110,6 +110,12 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json()
+    console.log('=== API PUT - DATOS RECIBIDOS ===')
+    console.log('Body completo:', body)
+    console.log('Campo idinquilino_activo recibido:', body.idinquilino_activo)
+    console.log('Tipo de idinquilino_activo:', typeof body.idinquilino_activo)
+    console.log('=== FIN DATOS RECIBIDOS ===')
+    
     const {
       idconcepto_deuda,
       idstand,
@@ -117,7 +123,8 @@ export async function PUT(request, { params }) {
       monto,
       mora = 0,
       estado = true,
-      lote = false
+      lote = false,
+      idinquilino_activo
     } = body
 
     // Validaciones
@@ -141,6 +148,7 @@ export async function PUT(request, { params }) {
         mora: parseFloat(mora),
         estado: Boolean(estado),
         lote: Boolean(lote),
+        idinquilino_activo: idinquilino_activo !== undefined ? idinquilino_activo : null,
         updatedby: session.user.id
       },
       include: {
@@ -150,6 +158,7 @@ export async function PUT(request, { params }) {
             client: true
           }
         },
+        inquilino_activo: true,
         createdBy: {
           select: {
             username: true
@@ -162,6 +171,11 @@ export async function PUT(request, { params }) {
         }
       }
     })
+
+    console.log('=== API PUT - RESULTADO ACTUALIZACIÓN ===')
+    console.log('Detalle actualizado:', detalleActualizado)
+    console.log('Campo idinquilino_activo en resultado:', detalleActualizado.idinquilino_activo)
+    console.log('=== FIN RESULTADO ===')
 
     return NextResponse.json({
       ...detalleActualizado,
