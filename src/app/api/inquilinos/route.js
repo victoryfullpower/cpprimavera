@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import db from '@/libs/db'
 
 // GET - Obtener todos los inquilinos con sus relaciones de stands
 export async function GET() {
     try {
-        const inquilinos = await prisma.inquilino.findMany({
+        const inquilinos = await db.inquilino.findMany({
             where: {
                 estado: true
             },
             include: {
                 inquilino_stand: {
+                    where: {
+                        actual: true
+                    },
                     include: {
-                        stand: true
+                        stand: {
+                            include: {
+                                client: {
+                                    select: {
+                                        idcliente: true,
+                                        nombre: true
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -45,7 +55,7 @@ export async function POST(request) {
             )
         }
 
-        const inquilino = await prisma.inquilino.create({
+        const inquilino = await db.inquilino.create({
             data: {
                 nombre: nombre.trim(),
                 estado: true

@@ -123,8 +123,11 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
               return {
                 ...detalle,
                 montoDeuda: deudaDetalle.monto,
+                mora: deudaDetalle.mora || 0,
                 montoPago: detalle.monto,
-                saldoPendiente: saldoDisponible
+                saldoPendiente: saldoDisponible,
+                // Mantener la información del inquilino de la deuda
+                inquilino_activo: deudaDetalle.inquilino_activo
               };
             })
           );
@@ -154,12 +157,33 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
     try {
       const res = await fetch(`/api/reg-deuda-detalle?standId=${idstand}`);
       const data = await res.json();
+      
+      console.log('=== DEBUG FETCH DEUDAS ===');
+      console.log('data obtenida:', data);
+      console.log('form.detalles actuales:', form.detalles);
+      
+      // Log detallado de la primera deuda para debug
+      if (data.length > 0) {
+        const primeraDeuda = data[0];
+        console.log('=== PRIMERA DEUDA DETALLADA ===');
+        console.log('primeraDeuda:', primeraDeuda);
+        console.log('monto:', primeraDeuda.monto);
+        console.log('mora:', primeraDeuda.mora);
+        console.log('totalPagado:', primeraDeuda.totalPagado);
+        console.log('saldoPendiente:', primeraDeuda.saldoPendiente);
+        console.log('¿monto + mora - totalPagado = saldoPendiente?', 
+          primeraDeuda.monto + primeraDeuda.mora - primeraDeuda.totalPagado === primeraDeuda.saldoPendiente);
+      }
+      
       setAllDeudas(data);
       
       const detallesIds = form.detalles.map(d => d.idregdeuda_detalle);
       const deudasFiltradas = data.filter(
         deuda => !detallesIds.includes(deuda.idregdeuda_detalle) && deuda.saldoPendiente > 0
       );
+      
+      console.log('deudasFiltradas:', deudasFiltradas);
+      
       setDeudas(deudasFiltradas);
     } catch (error) {
       toast.error('Error cargando deudas');
@@ -247,8 +271,32 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
 
     // Validar que los montos de pago no excedan el saldo pendiente
     for (const detalle of form.detalles) {
+      console.log('=== DEBUG VALIDACIÓN ===');
+      console.log('detalle:', detalle);
+      console.log('montoPago:', detalle.montoPago);
+      console.log('saldoPendiente:', detalle.saldoPendiente);
+      console.log('montoDeuda:', detalle.montoDeuda);
+      console.log('mora:', detalle.mora);
+      console.log('totalPagado:', detalle.totalPagado);
+      
+      // Calcular el saldo pendiente real (monto + mora - totalPagado)
+      const saldoPendienteReal = (Number(detalle.montoDeuda) || 0) + (Number(detalle.mora) || 0) - (Number(detalle.totalPagado) || 0);
+      console.log('saldoPendienteReal calculado:', saldoPendienteReal);
+      console.log('¿montoPago > saldoPendiente?', detalle.montoPago > detalle.saldoPendiente);
+      console.log('¿montoPago > saldoPendienteReal?', detalle.montoPago > saldoPendienteReal);
+      
+      // Validar que el monto de pago no sea mayor al saldo pendiente
       if (detalle.idregdeuda_detalle && detalle.montoPago > detalle.saldoPendiente) {
+        console.log('ERROR: montoPago excede saldoPendiente');
+        console.log(`montoPago (${detalle.montoPago}) > saldoPendiente (${detalle.saldoPendiente})`);
         toast.error(`El monto de pago (S/. ${detalle.montoPago.toFixed(2)}) excede el saldo pendiente (S/. ${detalle.saldoPendiente.toFixed(2)}) para la deuda seleccionada`);
+        return;
+      }
+      
+      // Validar que el monto de pago sea positivo
+      if (detalle.montoPago <= 0) {
+        console.log('ERROR: montoPago no es positivo');
+        toast.error(`El monto de pago debe ser mayor a 0 para el concepto: ${detalle.concepto?.descripcion || 'Concepto no disponible'}`);
         return;
       }
     }
@@ -326,17 +374,33 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
     
     const saldoDisponible = deuda.saldoPendiente;
     
+    console.log('=== DEBUG AGREGAR DEUDA ===');
+    console.log('deuda original:', deuda);
+    console.log('saldoDisponible:', saldoDisponible);
+    console.log('deuda.monto:', deuda.monto);
+    console.log('deuda.mora:', deuda.mora);
+    console.log('deuda.totalPagado:', deuda.totalPagado);
+    
+    // Calcular el saldo pendiente real para asegurar consistencia
+    const saldoPendienteReal = (Number(deuda.monto) || 0) + (Number(deuda.mora) || 0) - (Number(deuda.totalPagado) || 0);
+    console.log('saldoPendienteReal calculado:', saldoPendienteReal);
+    console.log('¿saldoDisponible === saldoPendienteReal?', saldoDisponible === saldoPendienteReal);
+    
     const nuevoDetalle = {
       idconcepto: deuda.idconcepto_deuda,
       concepto: deuda.concepto,
       fechadeuda: deuda.fechadeudaStand,
       idregdeuda_detalle: deuda.idregdeuda_detalle,
       montoDeuda: deuda.monto,
+      mora: deuda.mora || 0,
       totalPagado: deuda.totalPagado || 0,
-      saldoPendiente: saldoDisponible,
-      montoPago: saldoDisponible,
+      saldoPendiente: saldoPendienteReal, // Usar el valor calculado para asegurar consistencia
+      montoPago: saldoPendienteReal, // Inicialmente igual al saldo disponible
       inquilino_activo: deuda.inquilino_activo
     };
+    
+    console.log('nuevoDetalle creado:', nuevoDetalle);
+    console.log('saldoPendiente del nuevo detalle:', nuevoDetalle.saldoPendiente);
     
     setForm(prev => ({
       ...prev,
@@ -505,6 +569,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                       </div>
                     </TableColumn>
                     <TableColumn>M. Deuda</TableColumn>
+                    <TableColumn>Mora</TableColumn>
                     <TableColumn>Pagado</TableColumn>
                     <TableColumn>Saldo</TableColumn>
                     <TableColumn>Acción</TableColumn>
@@ -543,6 +608,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                           })()}
                         </TableCell>
                         <TableCell>S/. {deuda.monto.toFixed(2)}</TableCell>
+                        <TableCell>S/. {deuda.mora.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.totalPagado.toFixed(2)}</TableCell>
                         <TableCell>S/. {deuda.saldoPendiente.toFixed(2)}</TableCell>
                         <TableCell>
@@ -588,6 +654,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                       </div>
                     </TableColumn>
                     <TableColumn>M.Deuda</TableColumn>
+                    <TableColumn>Mora</TableColumn>
                     <TableColumn>M.Pago</TableColumn>
                     <TableColumn>Acción</TableColumn>
                   </TableHeader>
@@ -634,19 +701,40 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                           </span>
                         </TableCell>
                         <TableCell>
+                          <span className="text-default-600">
+                            S/. {(Number(detalle.mora) || 0).toFixed(2)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
                           <Input
                             type="number"
                             value={detalle.montoPago ?? ''}
                             onChange={(e) => {
-                              const saldo = Number(detalle.saldoPendiente) || Number(detalle.montoDeuda) || 0
+                              const saldo = Number(detalle.saldoPendiente) || 0
                               const inputValue = e.target.value
+                              
+                              console.log('=== DEBUG INPUT MONTOS ===');
+                              console.log('inputValue:', inputValue);
+                              console.log('saldo:', saldo);
+                              console.log('detalle.saldoPendiente:', detalle.saldoPendiente);
                               
                               if (/^(\d+)?([.]?\d{0,2})?$/.test(inputValue) || inputValue === '') {
                                 const numericValue = inputValue === '' ? null : parseFloat(inputValue)
+                                
+                                // Validar que no exceda el saldo pendiente
+                                if (numericValue !== null && numericValue > saldo) {
+                                  console.log('ERROR: Valor ingresado excede saldo pendiente');
+                                  toast.error(`El monto ingresado (S/. ${numericValue.toFixed(2)}) excede el saldo pendiente (S/. ${saldo.toFixed(2)})`);
+                                  return;
+                                }
+                                
                                 const value = Math.min(
                                   numericValue ?? 0,
                                   saldo
                                 )
+                                
+                                console.log('numericValue:', numericValue);
+                                console.log('value final:', value);
                                 
                                 const nuevosDetalles = [...form.detalles]
                                 nuevosDetalles[index].montoPago = numericValue !== null ? value : null
@@ -654,7 +742,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                               }
                             }}
                             min="0.01"
-                            max={Number(detalle.saldoPendiente) || Number(detalle.montoDeuda) || 0}
+                            max={Number(detalle.saldoPendiente) || 0}
                             step="0.01"
                             startContent={
                               <span className="text-default-400 text-small">S/.</span>
@@ -663,7 +751,7 @@ export default function FormRecibo({ recibo, onClose, onSave }) {
                               <div className="flex flex-col whitespace-nowrap">
                                 <span style={{fontSize: "8px"}}>Máx:</span>
                                 <span style={{fontSize: "8px"}}>
-                                  S/. {(Number(detalle.saldoPendiente) || Number(detalle.montoDeuda) || 0).toFixed(2)}
+                                  S/. {(Number(detalle.saldoPendiente) || 0).toFixed(2)}
                                 </span>
                               </div>
                             }

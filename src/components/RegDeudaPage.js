@@ -136,11 +136,23 @@ export default function RegDeudaPage({ userRole }) {
             idinquilino_activo: detalle.idinquilino_activo || null
         })
         
-        // Configurar el toggle según si hay inquilino activo
-        const tieneInquilino = !!detalle.idinquilino_activo
-        console.log('Configurando toggle inquilino paga:', tieneInquilino)
-        setInquilinoPaga(tieneInquilino)
-        setInquilinoActivo(detalle.inquilino_activo || null)
+        // Configurar el toggle según si el concepto tiene inquilinopaga = true
+        const concepto = conceptos.find(c => c.idconcepto === parseInt(detalle.idconcepto_deuda));
+        const conceptoPermiteInquilino = !!concepto?.inquilinopaga;
+        console.log('Concepto encontrado:', concepto);
+        console.log('¿Concepto permite inquilino?', conceptoPermiteInquilino);
+        console.log('Configurando toggle inquilino paga:', conceptoPermiteInquilino);
+        setInquilinoPaga(conceptoPermiteInquilino);
+        
+        // Si el concepto no permite inquilino, limpiar el idinquilino_activo
+        if (!conceptoPermiteInquilino) {
+            setCurrentDetalle(prev => ({
+                ...prev,
+                idinquilino_activo: null
+            }));
+        }
+        
+        setInquilinoActivo(detalle.inquilino_activo || null);
         
         console.log('=== FIN INIT EDIT ===')
         onOpen()
@@ -1019,10 +1031,23 @@ export default function RegDeudaPage({ userRole }) {
                                             selectedKey={currentDetalle.idconcepto_deuda ? currentDetalle.idconcepto_deuda.toString() : null}
                                             onSelectionChange={(key) => {
                                                 console.log('Concepto seleccionado:', key);
+                                                const idconcepto = key ? parseInt(key) : '';
+                                                const conceptoSeleccionado = conceptos.find(c => c.idconcepto === idconcepto);
+                                                
                                                 setCurrentDetalle(prev => ({
                                                     ...prev,
-                                                    idconcepto_deuda: key ? parseInt(key) : ''
+                                                    idconcepto_deuda: idconcepto
                                                 }));
+                                                
+                                                // Si el nuevo concepto no tiene inquilinopaga = true, resetear el toggle
+                                                if (!conceptoSeleccionado?.inquilinopaga) {
+                                                    console.log('Concepto no tiene inquilinopaga = true, reseteando toggle');
+                                                    setInquilinoPaga(false);
+                                                    setCurrentDetalle(prev => ({
+                                                        ...prev,
+                                                        idinquilino_activo: null
+                                                    }));
+                                                }
                                             }}
                                             isRequired
                                             allowsCustomValue={false}
@@ -1160,69 +1185,71 @@ export default function RegDeudaPage({ userRole }) {
                                         </div>
                                     </div>
 
-                                    {/* Cuarta fila: Inquilino Paga */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                                                                         <Switch
-                                                 isSelected={inquilinoPaga}
-                                                 onValueChange={(value) => {
-                                                     console.log('=== TOGGLE INQUILINO PAGA ===')
-                                                     console.log('Valor del toggle:', value)
-                                                     console.log('Estado anterior del toggle:', inquilinoPaga)
-                                                     console.log('Inquilino activo actual:', inquilinoActivo)
-                                                     console.log('Stand seleccionado:', currentDetalle.idstand)
-                                                     
-                                                     setInquilinoPaga(value)
-                                                     
-                                                     if (!value) {
-                                                         console.log('Desactivando toggle - limpiando idinquilino_activo')
-                                                         setCurrentDetalle(prev => ({
-                                                             ...prev,
-                                                             idinquilino_activo: null
-                                                         }))
-                                                     } else if (currentDetalle.idstand && inquilinoActivo) {
-                                                         console.log('Activando toggle - estableciendo idinquilino_activo:', inquilinoActivo.idinquilino)
-                                                         setCurrentDetalle(prev => ({
-                                                             ...prev,
-                                                             idinquilino_activo: inquilinoActivo.idinquilino
-                                                         }))
-                                                     } else {
-                                                         console.log('Toggle activado pero no hay stand o inquilino activo')
-                                                     }
-                                                     
-                                                     console.log('=== FIN TOGGLE ===')
-                                                 }}
-                                                 isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
-                                             >
-                                                 Inquilino Paga
-                                             </Switch>
-                                        </div>
-                                        
-                                        {inquilinoPaga && (
-                                            <div className="ml-6">
-                                                {!currentDetalle.idstand ? (
-                                                    <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                                                        <span className="text-sm text-red-700">
-                                                            ⚠️ <strong>Stand requerido:</strong> Debe seleccionar un stand para activar &quot;Inquilino Paga&quot;
-                                                        </span>
-                                                    </div>
-                                                ) : inquilinoActivo ? (
-                                                    <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                                                        <span className="text-sm text-green-700">
-                                                            Inquilino activo: <strong>{inquilinoActivo.nombre}</strong>
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                                                        <span className="text-sm text-red-700">
-                                                            ⚠️ No hay inquilino activo para este stand. 
-                                                            Revise en la sección Stand.
-                                                        </span>
-                                                    </div>
-                                                )}
+                                    {/* Cuarta fila: Inquilino Paga - Solo mostrar si el concepto tiene inquilinopaga = true */}
+                                    {currentDetalle.idconcepto_deuda && conceptos.find(c => c.idconcepto === currentDetalle.idconcepto_deuda)?.inquilinopaga && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <Switch
+                                                    isSelected={inquilinoPaga}
+                                                    onValueChange={(value) => {
+                                                        console.log('=== TOGGLE INQUILINO PAGA ===')
+                                                        console.log('Valor del toggle:', value)
+                                                        console.log('Estado anterior del toggle:', inquilinoPaga)
+                                                        console.log('Inquilino activo actual:', inquilinoActivo)
+                                                        console.log('Stand seleccionado:', currentDetalle.idstand)
+                                                        
+                                                        setInquilinoPaga(value)
+                                                        
+                                                        if (!value) {
+                                                            console.log('Desactivando toggle - limpiando idinquilino_activo')
+                                                            setCurrentDetalle(prev => ({
+                                                                ...prev,
+                                                                idinquilino_activo: null
+                                                            }))
+                                                        } else if (currentDetalle.idstand && inquilinoActivo) {
+                                                            console.log('Activando toggle - estableciendo idinquilino_activo:', inquilinoActivo.idinquilino)
+                                                            setCurrentDetalle(prev => ({
+                                                                ...prev,
+                                                                idinquilino_activo: inquilinoActivo.idinquilino
+                                                            }))
+                                                        } else {
+                                                            console.log('Toggle activado pero no hay stand o inquilino activo')
+                                                        }
+                                                        
+                                                        console.log('=== FIN TOGGLE ===')
+                                                    }}
+                                                    isDisabled={session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle}
+                                                >
+                                                    Inquilino Paga
+                                                </Switch>
                                             </div>
-                                        )}
-                                    </div>
+                                            
+                                            {inquilinoPaga && (
+                                                <div className="ml-6">
+                                                    {!currentDetalle.idstand ? (
+                                                        <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                                                            <span className="text-sm text-red-700">
+                                                                ⚠️ <strong>Stand requerido:</strong> Debe seleccionar un stand para activar &quot;Inquilino Paga&quot;
+                                                            </span>
+                                                        </div>
+                                                    ) : inquilinoActivo ? (
+                                                        <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                            <span className="text-sm text-green-700">
+                                                                Inquilino activo: <strong>{inquilinoActivo.nombre}</strong>
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                                                            <span className="text-sm text-red-700">
+                                                                ⚠️ No hay inquilino activo para este stand. 
+                                                                Revise en la sección Stand.
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </form>
                             </ModalBody>
                             <Divider />

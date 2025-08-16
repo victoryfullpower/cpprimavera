@@ -120,8 +120,20 @@ const fechaPeru = new Date(ahora.getTime() - offsetPeru);
             (sum, det) => sum + parseFloat(det.monto.toString()),
             0
           );
-          const saldoPendiente = parseFloat(deudaDetalle.monto.toString()) - totalPagado;
+          // Incluir la mora en el cálculo del saldo pendiente
+          const montoTotal = parseFloat(deudaDetalle.monto.toString());
+          const moraTotal = deudaDetalle.mora ? parseFloat(deudaDetalle.mora.toString()) : 0;
+          const saldoPendiente = (montoTotal + moraTotal) - totalPagado;
           const montoPago = parseFloat(detalle.montoPago);
+
+          console.log('=== DEBUG API RECIBO INGRESO ===');
+          console.log('deudaDetalle:', deudaDetalle);
+          console.log('montoTotal:', montoTotal);
+          console.log('moraTotal:', moraTotal);
+          console.log('totalPagado:', totalPagado);
+          console.log('saldoPendiente calculado:', saldoPendiente);
+          console.log('montoPago:', montoPago);
+          console.log('¿montoPago > saldoPendiente?', montoPago > saldoPendiente);
 
           if (montoPago > saldoPendiente) {
             return NextResponse.json(

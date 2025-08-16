@@ -17,7 +17,16 @@ const ReciboPrint = forwardRef(({
     month: '2-digit',
     year: 'numeric'
   });
-  console.log("detalles",detalles);
+  console.log("=== DEBUG RECIBO PRINT ===");
+  console.log("recibo:", recibo);
+  console.log("detalles:", detalles);
+  console.log("detalles con inquilino:", detalles?.map(det => ({
+    concepto: det.concepto?.descripcion,
+    inquilino_activo: det.inquilino_activo,
+    detalleDeuda: det.detalleDeuda,
+    idregdeuda_detalle: det.idregdeuda_detalle
+  })));
+  
   const total = detalles.reduce((sum, det) => sum + (Number(det.montoPago) || 0), 0)
 
   // Función para convertir números a letras
@@ -107,10 +116,26 @@ const ReciboPrint = forwardRef(({
           Recibí de {
             (() => {
               // Buscar si algún detalle tiene inquilino activo
-              const detalleConInquilino = detalles?.find(det => det.detalleDeuda?.inquilino_activo);
-              console.log("detalleConInquilino",detalleConInquilino);
-              if (detalleConInquilino?.detalleDeuda?.inquilino_activo) {
-                // Si hay inquilino activo, mostrar su nombre
+              // Manejar tanto el caso de nuevo recibo como el de recibo existente
+              const detalleConInquilino = detalles?.find(det => {
+                // Caso 1: Nuevo recibo - inquilino está directamente en el detalle
+                if (det.inquilino_activo) {
+                  return det.inquilino_activo;
+                }
+                // Caso 2: Recibo existente - inquilino está en detalleDeuda
+                if (det.detalleDeuda?.inquilino_activo) {
+                  return det.detalleDeuda.inquilino_activo;
+                }
+                return false;
+              });
+              
+              console.log("detalleConInquilino", detalleConInquilino);
+              
+              if (detalleConInquilino?.inquilino_activo) {
+                // Caso 1: Nuevo recibo
+                return detalleConInquilino.inquilino_activo.nombre;
+              } else if (detalleConInquilino?.detalleDeuda?.inquilino_activo) {
+                // Caso 2: Recibo existente
                 return detalleConInquilino.detalleDeuda.inquilino_activo.nombre;
               } else {
                 // Si no hay inquilino, mostrar el cliente
@@ -127,6 +152,7 @@ const ReciboPrint = forwardRef(({
           <tr className="border-b border-t">
             <th className="text-left py-1">CONCEPTO</th>
             <th className="text-right py-1">FECHA</th>
+            <th className="text-right py-1">MORA</th>
             <th className="text-right py-1">MONTO</th>
           </tr>
         </thead>
@@ -141,6 +167,7 @@ const ReciboPrint = forwardRef(({
                   year: 'numeric'
                 })}
               </td>
+              <td className="text-right py-1">S/. {(Number(detalle.mora) || 0).toFixed(2)}</td>
               <td className="text-right py-1">S/. {Number(detalle.montoPago).toFixed(2)}</td>
             </tr>
           ))}

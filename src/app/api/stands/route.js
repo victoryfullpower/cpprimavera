@@ -1,19 +1,42 @@
 import { NextResponse } from 'next/server'
 import db from '@/libs/db'
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const stands = await db.stand.findMany({
-      include: {
-        client: {
-          select: {
-            idcliente: true,
-            nombre: true
+    const { searchParams } = new URL(request.url)
+    const includeClient = searchParams.get('includeClient') === 'true'
+    
+    const includeOptions = {
+      client: {
+        select: {
+          idcliente: true,
+          nombre: true
+        }
+      }
+    }
+    
+    // Si se solicita incluir inquilinos, agregar la relación
+    if (includeClient) {
+      includeOptions.inquilino_stand = {
+        where: {
+          actual: true
+        },
+        include: {
+          inquilino: {
+            select: {
+              idinquilino: true,
+              nombre: true
+            }
           }
         }
-      },
+      }
+    }
+    
+    const stands = await db.stand.findMany({
+      include: includeOptions,
       orderBy: { idstand: 'asc' }
     })
+    
     console.log(stands)
     return NextResponse.json(stands)
   } catch (error) {

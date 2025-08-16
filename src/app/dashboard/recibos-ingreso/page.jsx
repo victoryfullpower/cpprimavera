@@ -374,7 +374,7 @@ export default function RecibosIngresoPage() {
                 size="5xl"
                 className="max-h-[95vh]"
             >
-                <ModalContent className="h-[95vh]" style={{ maxWidth: "90rem", justifyContent: "center" }}>
+                <ModalContent className="h-[95vh]" style={{ maxWidth: "95rem", justifyContent: "center" }}>
                     {(onClose) => (
                         <>
                             {isOtroRecibo ? (

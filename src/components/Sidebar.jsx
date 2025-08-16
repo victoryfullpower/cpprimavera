@@ -196,6 +196,9 @@ export default function Sidebar({ userRole }) {
                <Link href="/dashboard/reportes/estatus-stands" className={`submenu-item ${isActive('/dashboard/reportes/estatus-stands') ? 'active' : ''}`}>
                 <FiLayers className="inline mr-2" /> Estatus de Stands
               </Link>
+              <Link href="/dashboard/reportes/status-inquilino" className={`submenu-item ${isActive('/dashboard/reportes/status-inquilino') ? 'active' : ''}`}>
+                <FiUsers className="inline mr-2" /> Status Inquilino
+              </Link>
              
             </div>
           </div>
