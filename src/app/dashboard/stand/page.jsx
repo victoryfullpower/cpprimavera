@@ -59,7 +59,16 @@ export default function StandsPage() {
     const [isInquilinoSubmitting, setIsInquilinoSubmitting] = useState(false)
     const [clienteSearch, setClienteSearch] = useState('')
     const [refreshTrigger, setRefreshTrigger] = useState(0)
-    const rowsPerPage = 10
+    const [rowsPerPage, setRowsPerPage] = useState(10)
+
+    // Opciones para registros por página
+    const rowsPerPageOptions = [
+        { key: "10", label: "10" },
+        { key: "25", label: "25" },
+        { key: "50", label: "50" },
+        { key: "100", label: "100" },
+        { key: "all", label: "Todos" }
+    ]
 
     // Niveles predefinidos
     const niveles = [1, 2, 3, 4, 5]
@@ -102,15 +111,30 @@ export default function StandsPage() {
     }, [refreshTrigger])
 
     // Filtrar y paginar
-    const filteredItems = stands.filter(stand =>
-        stand.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
-        (stand.client?.nombre.toLowerCase().includes(filter.toLowerCase()))
+    const filteredItems = useMemo(() => 
+        stands.filter(stand =>
+            stand.descripcion.toLowerCase().includes(filter.toLowerCase()) ||
+            (stand.client?.nombre.toLowerCase().includes(filter.toLowerCase())) ||
+            (stand.inquilinoActivo?.nombre.toLowerCase().includes(filter.toLowerCase()))
+        ),
+        [stands, filter]
     )
 
-    const paginatedItems = filteredItems.slice(
-        (page - 1) * rowsPerPage,
-        page * rowsPerPage
+    const paginatedItems = useMemo(() => 
+        rowsPerPage === 'all' 
+            ? filteredItems 
+            : filteredItems.slice(
+                (page - 1) * rowsPerPage,
+                page * rowsPerPage
+            ),
+        [filteredItems, page, rowsPerPage]
     )
+
+    // Resetear página cuando cambie rowsPerPage
+    const handleRowsPerPageChange = (value) => {
+        setRowsPerPage(value === 'all' ? 'all' : parseInt(value))
+        setPage(1)
+    }
 
     // Filtrar clientes para el select con búsqueda
     const filteredClientes = useMemo(() => {
@@ -358,6 +382,19 @@ export default function StandsPage() {
                         isClearable
                         onClear={() => setFilter('')}
                     />
+                    <Select
+                        selectedKeys={[rowsPerPage.toString()]}
+                        className="w-24"
+                        size="sm"
+                        placeholder=""
+                        onChange={(e) => handleRowsPerPageChange(e.target.value)}
+                    >
+                        {rowsPerPageOptions.map((option) => (
+                            <SelectItem key={option.key} value={option.key}>
+                                {option.key === 'all' ? 'Todos' : option.key}
+                            </SelectItem>
+                        ))}
+                    </Select>
                     <Button
                         color="primary"
                         onPress={() => {
@@ -378,17 +415,19 @@ export default function StandsPage() {
             <Table
                 aria-label="Tabla de stands"
                 bottomContent={
-                    <div className="flex w-full justify-center">
-                        <Pagination
-                            isCompact
-                            showControls
-                            showShadow
-                            color="primary"
-                            page={page}
-                            total={Math.ceil(filteredItems.length / rowsPerPage)}
-                            onChange={setPage}
-                        />
-                    </div>
+                    rowsPerPage !== 'all' && (
+                        <div className="flex w-full justify-center">
+                            <Pagination
+                                isCompact
+                                showControls
+                                showShadow
+                                color="primary"
+                                page={page}
+                                total={Math.ceil(filteredItems.length / rowsPerPage)}
+                                onChange={setPage}
+                            />
+                        </div>
+                    )
                 }
                 classNames={{
                     wrapper: "min-h-[400px]",
@@ -484,17 +523,19 @@ export default function StandsPage() {
             <Table
                 aria-label="Tabla de stands"
                 bottomContent={
-                    <div className="flex w-full justify-center">
-                        <Pagination
-                            isCompact
-                            showControls
-                            showShadow
-                            color="primary"
-                            page={page}
-                            total={Math.ceil(filteredItems.length / rowsPerPage)}
-                            onChange={setPage}
-                        />
-                    </div>
+                    rowsPerPage !== 'all' && (
+                        <div className="flex w-full justify-center">
+                            <Pagination
+                                isCompact
+                                showControls
+                                showShadow
+                                color="primary"
+                                page={page}
+                                total={Math.ceil(filteredItems.length / rowsPerPage)}
+                                onChange={setPage}
+                            />
+                        </div>
+                    )
                 }
                 classNames={{
                     wrapper: "min-h-[400px]",

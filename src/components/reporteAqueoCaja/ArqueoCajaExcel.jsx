@@ -15,6 +15,7 @@ const ArqueoCajaExcel = ({ reporte }) => {
       ['RESUMEN'],
       ['Total Ingresos:', reporte.totalIngresos],
       ['Total Egresos:', reporte.totalEgresos],
+      ['Total Compras:', reporte.totalCompras],
       ['Saldo Final:', reporte.saldo],
       [],
       ['INGRESOS POR MÉTODO DE PAGO'],
@@ -69,6 +70,26 @@ const ArqueoCajaExcel = ({ reporte }) => {
     const egresosSheet = XLSX.utils.aoa_to_sheet(egresosData);
     XLSX.utils.book_append_sheet(workbook, egresosSheet, "Egresos");
 
+    // Hoja de detalle de compras
+    const comprasData = [
+      ['DETALLE DE COMPRAS'],
+      [],
+      ['N° Comprobante', 'Fecha', 'Tipo Documento', 'Descripción', 'Monto']
+    ];
+
+    reporte.detalleCompras.forEach(compra => {
+      comprasData.push([
+        compra.numcomprobante,
+        new Date(compra.fecharegistro).toLocaleDateString(),
+        compra.tipoCompra?.descripcion || 'Sin tipo',
+        compra.descripcion || 'Sin descripción',
+        compra.monto
+      ]);
+    });
+
+    const comprasSheet = XLSX.utils.aoa_to_sheet(comprasData);
+    XLSX.utils.book_append_sheet(workbook, comprasSheet, "Compras");
+
     // Estilos para las celdas
     if (workbook.Sheets["Resumen"]) {
       // Estilo para los títulos
@@ -93,7 +114,7 @@ const ArqueoCajaExcel = ({ reporte }) => {
     }
 
     // Aplicar formato a las hojas de detalle
-    [ingresosSheet, egresosSheet].forEach(sheet => {
+    [ingresosSheet, egresosSheet, comprasSheet].forEach(sheet => {
       if (sheet["!ref"]) {
         const range = XLSX.utils.decode_range(sheet["!ref"]);
         
@@ -106,7 +127,15 @@ const ArqueoCajaExcel = ({ reporte }) => {
         }
         
         // Formato de moneda para columnas de total
-        const totalCol = sheet === ingresosSheet ? 5 : 2;
+        let totalCol;
+        if (sheet === ingresosSheet) {
+          totalCol = 5; // Total en ingresos
+        } else if (sheet === egresosSheet) {
+          totalCol = 2; // Total en egresos
+        } else if (sheet === comprasSheet) {
+          totalCol = 4; // Total en compras
+        }
+        
         for (let r = 3; r <= range.e.r; r++) {
           const cell = XLSX.utils.encode_cell({ r, c: totalCol });
           if (sheet[cell]) {

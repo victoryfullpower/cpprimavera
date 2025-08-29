@@ -84,7 +84,16 @@ export default function RegDeudaPage({ userRole }) {
     const [inquilinosBorrados, setInquilinosBorrados] = useState({}) // Para almacenar inquilinos borrados por stand
     const [sortField, setSortField] = useState('createdAt')
     const [sortDirection, setSortDirection] = useState('desc')
-    const rowsPerPage = 50
+    const [rowsPerPage, setRowsPerPage] = useState(10)
+
+    // Opciones para registros por página
+    const rowsPerPageOptions = [
+        { key: "10", label: "10" },
+        { key: "25", label: "25" },
+        { key: "50", label: "50" },
+        { key: "100", label: "100" },
+        { key: "all", label: "Todos" }
+    ]
 
     // Generar años disponibles para el filtro (desde 2000 hasta 2050)
     const availableYears = useMemo(() => {
@@ -98,25 +107,118 @@ export default function RegDeudaPage({ userRole }) {
     // Definir columnas dinámicamente según el rol
     const columns = useMemo(() => {
         const baseColumns = [
-            { key: "fechadeudaStand", label: "Fecha", width: "120px", allowsSorting: true },
-            { key: "concepto", label: "Concepto", allowsSorting: true },
-            { key: "stand", label: "Stand", allowsSorting: true },
-            { key: "inquilino", label: "Inquilino", width: "120px", allowsSorting: true },
-            { key: "monto", label: "Monto", width: "120px" },
-            { key: "mora", label: "Mora", width: "120px" },
-            { key: "total", label: "Total", width: "120px" },
-            { key: "pago", label: "Pago", width: "120px" },
-            { key: "saldo", label: "Saldo", width: "120px" },
-            { key: "estado", label: "Estado", width: "100px" },
-            { key: "creadoPor", label: "Creado por" },
-            { key: "actualizadoPor", label: "Actualizado por" }
+            { key: 'idstand', label: 'Stand', sortable: true },
+            { key: 'cliente', label: 'Cliente', sortable: true },
+            { key: 'concepto', label: 'Concepto', sortable: true },
+            { key: 'fechadeudaStand', label: 'Fecha Deuda', sortable: true },
+            { key: 'monto', label: 'Monto', sortable: true },
+            { key: 'mora', label: 'Mora', sortable: true },
+            { key: 'total', label: 'Total', sortable: true },
+            { key: 'estado', label: 'Estado', sortable: true },
+            { key: 'inquilino', label: 'Inquilino', sortable: true },
+            { key: 'createdAt', label: 'Creado', sortable: true },
+            { key: 'createdBy', label: 'Creado por', sortable: true }
         ]
 
-        // Todos los roles pueden ver la columna de acciones
-        baseColumns.push({ key: "acciones", label: "Acciones", width: "120px" })
+        if (userRole === 'SUPERADMIN') {
+            return [...baseColumns, { key: 'acciones', label: 'Acciones', sortable: false }]
+        } else if (userRole === 'ADMIN') {
+            return [...baseColumns, { key: 'acciones', label: 'Acciones', sortable: false }]
+        } else {
+            return baseColumns
+        }
+    }, [userRole])
 
-        return baseColumns
+    // Función para obtener el valor de una celda
+    const getCellValue = useCallback((item, columnKey) => {
+        switch (columnKey) {
+            case 'idstand':
+                return item.stand?.descripcion || 'N/A'
+            case 'cliente':
+                return item.stand?.client?.nombre || 'N/A'
+            case 'concepto':
+                return item.concepto?.descripcion || 'N/A'
+            case 'fechadeudaStand':
+                return format(new Date(item.fechadeudaStand), 'dd/MM/yyyy', { locale: es })
+            case 'monto':
+                return formatDecimal(item.monto)
+            case 'mora':
+                return formatDecimal(item.mora)
+            case 'total':
+                return formatDecimal(item.monto + item.mora)
+            case 'estado':
+                return item.estado ? 'Activo' : 'Inactivo'
+            case 'inquilino':
+                return item.inquilino_activo?.nombre || 'Sin inquilino'
+            case 'createdAt':
+                return format(new Date(item.createdAt), 'dd/MM/yyyy HH:mm', { locale: es })
+            case 'createdBy':
+                return item.createdBy?.username || 'N/A'
+            default:
+                return 'N/A'
+        }
     }, [])
+
+    // Función para ordenar los datos
+    const sortData = useCallback((data) => {
+        if (!sortField) return data
+
+        return [...data].sort((a, b) => {
+            let aValue = getCellValue(a, sortField)
+            let bValue = getCellValue(b, sortField)
+
+            // Convertir a números si es posible
+            if (sortField === 'monto' || sortField === 'mora' || sortField === 'total') {
+                aValue = parseFloat(aValue.replace(/[^\d.-]/g, '')) || 0
+                bValue = parseFloat(bValue.replace(/[^\d.-]/g, '')) || 0
+            } else if (sortField === 'fechadeudaStand' || sortField === 'createdAt') {
+                aValue = new Date(a[sortField])
+                bValue = new Date(b[sortField])
+            } else if (sortField === 'idstand') {
+                aValue = parseInt(aValue) || 0
+                bValue = parseInt(bValue) || 0
+            }
+
+            if (aValue < bValue) {
+                return sortDirection === 'asc' ? -1 : 1
+            }
+            if (aValue > bValue) {
+                return sortDirection === 'asc' ? 1 : -1
+            }
+            return 0
+        })
+    }, [sortField, sortDirection, getCellValue])
+
+    // Filtrar y ordenar datos
+    const filteredAndSortedItems = useMemo(() => {
+        let filtered = detalles.filter(detalle => {
+            const matchesFilter = !filter || 
+                detalle.stand?.descripcion?.toLowerCase().includes(filter.toLowerCase()) ||
+                detalle.stand?.client?.nombre?.toLowerCase().includes(filter.toLowerCase()) ||
+                detalle.concepto?.descripcion?.toLowerCase().includes(filter.toLowerCase()) ||
+                detalle.inquilino_activo?.nombre?.toLowerCase().includes(filter.toLowerCase())
+
+            const matchesYear = yearFilter === 'all' || 
+                format(new Date(detalle.fechadeudaStand), 'yyyy') === yearFilter
+
+            return matchesFilter && matchesYear
+        })
+
+        return sortData(filtered)
+    }, [detalles, filter, yearFilter, sortData])
+
+    // Paginar datos
+    const paginatedItems = useMemo(() => 
+        rowsPerPage === 'all' 
+            ? filteredAndSortedItems 
+            : filteredAndSortedItems.slice((page - 1) * rowsPerPage, page * rowsPerPage)
+        , [filteredAndSortedItems, page, rowsPerPage])
+
+    // Resetear página cuando cambie rowsPerPage
+    const handleRowsPerPageChange = (value) => {
+        setRowsPerPage(value === 'all' ? 'all' : parseInt(value))
+        setPage(1)
+    }
 
     // Función para editar un detalle
     const initEdit = (detalle) => {
@@ -158,23 +260,17 @@ export default function RegDeudaPage({ userRole }) {
         onOpen()
     }
 
-    // Función para renderizar celdas
+        // Función para renderizar celdas
     const renderCell = useCallback((item, columnKey) => {
         switch (columnKey) {
-            case "fechadeudaStand":
-                return format(new Date(item.fechadeudaStand), 'dd/MM/yyyy', { locale: es })
+            case "idstand":
+                return item.stand?.descripcion || 'N/A'
+            case "cliente":
+                return item.stand?.client?.nombre || 'N/A'
             case "concepto":
                 return item.concepto?.descripcion || 'N/A'
-            case "stand":
-                return `${item.stand?.descripcion || 'N/A'} - ${item.stand?.client?.nombre || 'Sin cliente'}`
-            case "inquilino":
-                return item.inquilino_activo ? (
-                    <Chip color="success" variant="flat" size="sm">
-                        {item.inquilino_activo.nombre}
-                    </Chip>
-                ) : (
-                    <span className="text-gray-400 text-sm">Sin inquilino</span>
-                )
+            case "fechadeudaStand":
+                return format(new Date(item.fechadeudaStand), 'dd/MM/yyyy', { locale: es })
             case "monto":
                 return (
                     <Chip color="primary" variant="flat">
@@ -196,63 +292,24 @@ export default function RegDeudaPage({ userRole }) {
                         S/. {formatDecimal(total)}
                     </Chip>
                 )
-            case "pago":
-                const totalPagado = item.totalPagado || 0
-                if (totalPagado === 0) {
-                    return <span className="text-gray-400 text-sm">Sin pagos</span>
-                }
-                return (
-                    <Chip color="success" variant="flat">
-                        S/. {formatDecimal(totalPagado)}
-                    </Chip>
-                )
-            case "saldo":
-                const saldoPendiente = item.saldoPendiente || 0
-                const montoTotal = Number(item.monto) + Number(item.mora || 0)
-                
-                if (saldoPendiente === 0) {
-                    return (
-                        <Chip color="success" variant="flat" size="sm">
-                            Pagado
-                        </Chip>
-                    )
-                } else if (saldoPendiente < montoTotal) {
-                    return (
-                        <Chip color="warning" variant="flat" size="sm">
-                            S/. {formatDecimal(saldoPendiente)}
-                        </Chip>
-                    )
-                } else {
-                    return (
-                        <Chip color="danger" variant="flat" size="sm">
-                            S/. {formatDecimal(saldoPendiente)}
-                        </Chip>
-                    )
-                }
             case "estado":
                 return (
                     <Chip color={item.estado ? "success" : "danger"}>
                         {item.estado ? "Activo" : "Inactivo"}
                     </Chip>
                 )
-            case "creadoPor":
-                return (
-                    <>
-                        {item.createdBy?.username || 'N/A'}
-                        <p className="text-xs text-gray-400">
-                            {new Date(item.createdAt).toLocaleDateString()}
-                        </p>
-                    </>
+            case "inquilino":
+                return item.inquilino_activo ? (
+                    <Chip color="success" variant="flat" size="sm">
+                        {item.inquilino_activo.nombre}
+                    </Chip>
+                ) : (
+                    <span className="text-gray-400 text-sm">Sin inquilino</span>
                 )
-            case "actualizadoPor":
-                return (
-                    <>
-                        {item.updatedBy?.username || 'N/A'}
-                        <p className="text-xs text-gray-400">
-                            {new Date(item.updatedAt).toLocaleDateString()}
-                        </p>
-                    </>
-                )
+            case "createdAt":
+                return format(new Date(item.createdAt), 'dd/MM/yyyy HH:mm', { locale: es })
+            case "createdBy":
+                return item.createdBy?.username || 'N/A'
             case "acciones":
                 return (
                     <div className="flex gap-2">
@@ -486,13 +543,7 @@ export default function RegDeudaPage({ userRole }) {
         })
     }, [detalles, filter, yearFilter, sortField, sortDirection])
 
-    const paginatedItems = useMemo(() =>
-        filteredItems.slice(
-            (page - 1) * rowsPerPage,
-            page * rowsPerPage
-        ),
-        [filteredItems, page]
-    )
+
 
     // Operaciones CRUD
     const handleDelete = async (id) => {
@@ -919,6 +970,19 @@ export default function RegDeudaPage({ userRole }) {
                         isClearable
                         onClear={() => setFilter('')}
                     />
+                    <Select
+                        selectedKeys={[rowsPerPage.toString()]}
+                        className="w-24"
+                        size="sm"
+                        placeholder=""
+                        onChange={(e) => handleRowsPerPageChange(e.target.value)}
+                    >
+                        {rowsPerPageOptions.map((option) => (
+                            <SelectItem key={option.key} value={option.key}>
+                                {option.key === 'all' ? 'Todos' : option.key}
+                            </SelectItem>
+                        ))}
+                    </Select>
                     {(filter || (yearFilter && yearFilter !== 'all')) && (
                         <Button
                             color="default"
@@ -953,17 +1017,19 @@ export default function RegDeudaPage({ userRole }) {
                 <Table
                     aria-label="Tabla de detalles de deuda"
                     bottomContent={
-                        <div className="flex w-full justify-center">
-                            <Pagination
-                                isCompact
-                                showControls
-                                showShadow
-                                color="primary"
-                                page={page}
-                                total={Math.ceil(filteredItems.length / rowsPerPage)}
-                                onChange={setPage}
-                            />
-                        </div>
+                        rowsPerPage !== 'all' && (
+                            <div className="flex w-full justify-center">
+                                <Pagination
+                                    isCompact
+                                    showControls
+                                    showShadow
+                                    color="primary"
+                                    page={page}
+                                    total={Math.ceil(filteredAndSortedItems.length / rowsPerPage)}
+                                    onChange={setPage}
+                                />
+                            </div>
+                        )
                     }
                     classNames={{
                         wrapper: "min-h-[400px] w-full",
@@ -983,8 +1049,7 @@ export default function RegDeudaPage({ userRole }) {
                     {(column) => (
                         <TableColumn
                             key={column.key}
-                            width={column.width}
-                            allowsSorting={column.allowsSorting}
+                            allowsSorting={column.sortable}
                         >
                             {column.label}
                         </TableColumn>

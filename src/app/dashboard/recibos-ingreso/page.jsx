@@ -18,7 +18,9 @@ import {
     useDisclosure,
     Spinner,
     Chip,
-    Tooltip
+    Tooltip,
+    Select,
+    SelectItem
 } from '@nextui-org/react'
 import { toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -41,9 +43,18 @@ export default function RecibosIngresoPage() {
     const [isOtroRecibo, setIsOtroRecibo] = useState(false)
     const [filter, setFilter] = useState('')
     const [page, setPage] = useState(1)
+    const [rowsPerPage, setRowsPerPage] = useState(10)
     const { isOpen, onOpen, onOpenChange } = useDisclosure()
     const [currentRecibo, setCurrentRecibo] = useState(null)
-    const rowsPerPage = 10
+
+    // Opciones para registros por página
+    const rowsPerPageOptions = [
+        { key: "10", label: "10" },
+        { key: "25", label: "25" },
+        { key: "50", label: "50" },
+        { key: "100", label: "100" },
+        { key: "all", label: "Todos" }
+    ]
 
     // Estados para la impresión
     const [reciboParaImprimir, setReciboParaImprimir] = useState(null)
@@ -131,8 +142,16 @@ export default function RecibosIngresoPage() {
         ), [recibos, filter])
 
     const paginatedItems = useMemo(() =>
-        filteredItems.slice((page - 1) * rowsPerPage, page * rowsPerPage)
-        , [filteredItems, page])
+        rowsPerPage === 'all' 
+            ? filteredItems 
+            : filteredItems.slice((page - 1) * rowsPerPage, page * rowsPerPage)
+        , [filteredItems, page, rowsPerPage])
+
+    // Resetear página cuando cambie rowsPerPage
+    const handleRowsPerPageChange = (value) => {
+        setRowsPerPage(value === 'all' ? 'all' : parseInt(value))
+        setPage(1)
+    }
 
     const handleDelete = async (id) => {
         if (!confirm('¿Eliminar este recibo?')) return
@@ -229,12 +248,27 @@ export default function RecibosIngresoPage() {
                 </div>
             </div>
 
-            <Input
-                placeholder="Buscar por número, stand o cliente"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="mb-4"
-            />
+            <div className="flex gap-3 mb-4">
+                <Input
+                    placeholder="Buscar por número, stand o cliente"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="flex-1"
+                />
+                <Select
+                    selectedKeys={[rowsPerPage.toString()]}
+                    className="w-24"
+                    size="sm"
+                    placeholder=""
+                    onChange={(e) => handleRowsPerPageChange(e.target.value)}
+                >
+                    {rowsPerPageOptions.map((option) => (
+                        <SelectItem key={option.key} value={option.key}>
+                            {option.key === 'all' ? 'Todos' : option.key}
+                        </SelectItem>
+                    ))}
+                </Select>
+            </div>
 
             <Table>
                 <TableHeader>
@@ -359,14 +393,16 @@ export default function RecibosIngresoPage() {
                 </TableBody>
             </Table>
 
-            <div className="flex w-full justify-center">
-                <Pagination
-                    page={page}
-                    total={Math.ceil(filteredItems.length / rowsPerPage)}
-                    onChange={setPage}
-                    className="mt-4"
-                />
-            </div>
+            {rowsPerPage !== 'all' && (
+                <div className="flex w-full justify-center">
+                    <Pagination
+                        page={page}
+                        total={Math.ceil(filteredItems.length / rowsPerPage)}
+                        onChange={setPage}
+                        className="mt-4"
+                    />
+                </div>
+            )}
 
             <Modal
                 isOpen={isOpen}

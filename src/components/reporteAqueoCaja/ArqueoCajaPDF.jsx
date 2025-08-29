@@ -104,18 +104,24 @@ const ArqueoCajaPDF = ({ reporte, usuario }) => {
         </View>
 
         <View style={styles.summary}>
-          <View style={[styles.summaryCard, { backgroundColor: '#e6f7ee' }]}>
+          <View style={[styles.summaryCard, { backgroundColor: '#e6f7ee', width: '23%' }]}>
             <Text style={{ fontWeight: 'bold' }}>Total Ingresos</Text>
             <Text style={{ fontSize: 14 }}>S/ {reporte.totalIngresos.toFixed(2)}</Text>
           </View>
 
-          <View style={[styles.summaryCard, { backgroundColor: '#feeceb' }]}>
+          <View style={[styles.summaryCard, { backgroundColor: '#feeceb', width: '23%' }]}>
             <Text style={{ fontWeight: 'bold' }}>Total Egresos</Text>
             <Text style={{ fontSize: 14 }}>S/ {reporte.totalEgresos.toFixed(2)}</Text>
           </View>
 
+          <View style={[styles.summaryCard, { backgroundColor: '#fff3e0', width: '23%' }]}>
+            <Text style={{ fontWeight: 'bold' }}>Total Compras</Text>
+            <Text style={{ fontSize: 14 }}>S/ {reporte.totalCompras.toFixed(2)}</Text>
+          </View>
+
           <View style={[styles.summaryCard, { 
-            backgroundColor: reporte.saldo >= 0 ? '#e6f2ff' : '#ffebee' 
+            backgroundColor: reporte.saldo >= 0 ? '#e6f2ff' : '#ffebee',
+            width: '23%'
           }]}>
             <Text style={{ fontWeight: 'bold' }}>Saldo Final</Text>
             <Text style={{ fontSize: 14 }}>S/ {reporte.saldo.toFixed(2)}</Text>
@@ -214,6 +220,43 @@ const ArqueoCajaPDF = ({ reporte, usuario }) => {
               </View>
               <View style={[styles.tableCol, { width: '40%' }]}>
                 <Text style={styles.tableCell}>S/ {Number(egreso.total).toFixed(2)}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Detalle de Compras</Text>
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <View style={[styles.tableColHeader, { width: '25%' }]}>
+              <Text style={styles.tableCellHeader}>N° Comprobante</Text>
+            </View>
+            <View style={[styles.tableColHeader, { width: '20%' }]}>
+              <Text style={styles.tableCellHeader}>Fecha</Text>
+            </View>
+            <View style={[styles.tableColHeader, { width: '25%' }]}>
+              <Text style={styles.tableCellHeader}>Tipo Documento</Text>
+            </View>
+            <View style={[styles.tableColHeader, { width: '30%' }]}>
+              <Text style={styles.tableCellHeader}>Monto</Text>
+            </View>
+          </View>
+
+          {reporte.detalleCompras.map((compra) => (
+            <View key={compra.idcompra} style={styles.tableRow}>
+              <View style={[styles.tableCol, { width: '25%' }]}>
+                <Text style={styles.tableCell}>{compra.numcomprobante}</Text>
+              </View>
+              <View style={[styles.tableCol, { width: '20%' }]}>
+                <Text style={styles.tableCell}>
+                  {new Date(compra.fecharegistro).toLocaleDateString()}
+                </Text>
+              </View>
+              <View style={[styles.tableCol, { width: '25%' }]}>
+                <Text style={styles.tableCell}>{compra.tipoCompra?.descripcion || 'Sin tipo'}</Text>
+              </View>
+              <View style={[styles.tableCol, { width: '30%' }]}>
+                <Text style={styles.tableCell}>S/ {Number(compra.monto).toFixed(2)}</Text>
               </View>
             </View>
           ))}

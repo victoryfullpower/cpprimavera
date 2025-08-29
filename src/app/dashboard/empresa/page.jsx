@@ -20,7 +20,9 @@ import {
     Switch,
     Divider,
     Chip,
-    Textarea
+    Textarea,
+    Select,
+    SelectItem
 } from '@nextui-org/react'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -34,6 +36,7 @@ export default function EmpresaPage() {
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState('')
     const [page, setPage] = useState(1)
+    const [rowsPerPage, setRowsPerPage] = useState(10)
     const { isOpen, onOpen, onOpenChange } = useDisclosure()
     const [currentEmpresa, setCurrentEmpresa] = useState({
         nombre_empresa: '',
@@ -46,7 +49,15 @@ export default function EmpresaPage() {
         estado: true
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const rowsPerPage = 10
+
+    // Opciones para registros por página
+    const rowsPerPageOptions = [
+        { key: "10", label: "10" },
+        { key: "25", label: "25" },
+        { key: "50", label: "50" },
+        { key: "100", label: "100" },
+        { key: "all", label: "Todos" }
+    ]
 
     // Cargar datos
     const fetchData = async () => {
@@ -81,12 +92,20 @@ export default function EmpresaPage() {
     )
 
     const paginatedItems = useMemo(() => 
-        filteredItems.slice(
-            (page - 1) * rowsPerPage,
-            page * rowsPerPage
-        ),
-        [filteredItems, page]
+        rowsPerPage === 'all' 
+            ? filteredItems 
+            : filteredItems.slice(
+                (page - 1) * rowsPerPage,
+                page * rowsPerPage
+            ),
+        [filteredItems, page, rowsPerPage]
     )
+
+    // Resetear página cuando cambie rowsPerPage
+    const handleRowsPerPageChange = (value) => {
+        setRowsPerPage(value === 'all' ? 'all' : parseInt(value))
+        setPage(1)
+    }
 
     // Operaciones CRUD
     const handleDelete = async (id) => {
@@ -184,6 +203,19 @@ export default function EmpresaPage() {
                         isClearable
                         onClear={() => setFilter('')}
                     />
+                    <Select
+                        selectedKeys={[rowsPerPage.toString()]}
+                        className="w-24"
+                        size="sm"
+                        placeholder=""
+                        onChange={(e) => handleRowsPerPageChange(e.target.value)}
+                    >
+                        {rowsPerPageOptions.map((option) => (
+                            <SelectItem key={option.key} value={option.key}>
+                                {option.key === 'all' ? 'Todos' : option.key}
+                            </SelectItem>
+                        ))}
+                    </Select>
                     <Button
                         color="primary"
                         onPress={() => {
@@ -209,17 +241,19 @@ export default function EmpresaPage() {
             <Table
                 aria-label="Tabla de empresas"
                 bottomContent={
-                    <div className="flex w-full justify-center">
-                        <Pagination
-                            isCompact
-                            showControls
-                            showShadow
-                            color="primary"
-                            page={page}
-                            total={Math.ceil(filteredItems.length / rowsPerPage)}
-                            onChange={setPage}
-                        />
-                    </div>
+                    rowsPerPage !== 'all' && (
+                        <div className="flex w-full justify-center">
+                            <Pagination
+                                isCompact
+                                showControls
+                                showShadow
+                                color="primary"
+                                page={page}
+                                total={Math.ceil(filteredItems.length / rowsPerPage)}
+                                onChange={setPage}
+                            />
+                        </div>
+                    )
                 }
                 classNames={{
                     wrapper: "min-h-[400px]",
@@ -306,17 +340,19 @@ export default function EmpresaPage() {
             <Table
                 aria-label="Tabla de empresas"
                 bottomContent={
-                    <div className="flex w-full justify-center">
-                        <Pagination
-                            isCompact
-                            showControls
-                            showShadow
-                            color="primary"
-                            page={page}
-                            total={Math.ceil(filteredItems.length / rowsPerPage)}
-                            onChange={setPage}
-                        />
-                    </div>
+                    rowsPerPage !== 'all' && (
+                        <div className="flex w-full justify-center">
+                            <Pagination
+                                isCompact
+                                showControls
+                                showShadow
+                                color="primary"
+                                page={page}
+                                total={Math.ceil(filteredItems.length / rowsPerPage)}
+                                onChange={setPage}
+                            />
+                        </div>
+                    )
                 }
                 classNames={{
                     wrapper: "min-h-[400px]",

@@ -72,7 +72,7 @@ export default function ReporteArqueoCaja() {
 
       {reporte && !loading && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="bg-green-50">
               <CardHeader className="font-bold">Total Ingresos</CardHeader>
               <Divider />
@@ -89,6 +89,16 @@ export default function ReporteArqueoCaja() {
               <CardBody>
                 <p className="text-2xl font-bold text-red-700">
                   S/ {reporte.totalEgresos.toFixed(2)}
+                </p>
+              </CardBody>
+            </Card>
+
+            <Card className="bg-orange-50">
+              <CardHeader className="font-bold">Total Compras</CardHeader>
+              <Divider />
+              <CardBody>
+                <p className="text-2xl font-bold text-orange-700">
+                  S/ {reporte.totalCompras.toFixed(2)}
                 </p>
               </CardBody>
             </Card>
@@ -204,7 +214,7 @@ export default function ReporteArqueoCaja() {
             </div>
           </div>
 
-          <div>
+          <div className="mb-8">
             <h2 className="text-lg font-semibold mb-2 text-white">Detalle de Egresos</h2>
             <Table aria-label="Detalle de egresos">
               <TableHeader>
@@ -241,6 +251,41 @@ export default function ReporteArqueoCaja() {
                 total={Math.ceil(
                   reporte.detalleEgresos.flatMap(egreso => egreso.detalles).length / pageSize
                 )}
+                page={pageEgresos}
+                onChange={setPageEgresos}
+              />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold mb-2 text-white">Detalle de Compras</h2>
+            <Table aria-label="Detalle de compras">
+              <TableHeader>
+                <TableColumn>N° Comprobante</TableColumn>
+                <TableColumn>Fecha</TableColumn>
+                <TableColumn>Tipo Documento</TableColumn>
+                <TableColumn>Descripción</TableColumn>
+                <TableColumn>Monto</TableColumn>
+                <TableColumn>Creado por</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {reporte.detalleCompras
+                  .slice((pageEgresos - 1) * pageSize, pageEgresos * pageSize)
+                  .map((compra, index) => (
+                    <TableRow key={`${compra.idcompra}-${index}`}>
+                      <TableCell>{compra.numcomprobante}</TableCell>
+                      <TableCell>{format(new Date(compra.fecharegistro), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{compra.tipoCompra?.descripcion || 'Sin tipo'}</TableCell>
+                      <TableCell>{compra.descripcion || 'Sin descripción'}</TableCell>
+                      <TableCell>S/ {Number(compra.monto).toFixed(2)}</TableCell>
+                      <TableCell>{compra.createdBy?.username || 'N/A'}</TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+            <div className="flex justify-center mt-4">
+              <Pagination
+                total={Math.ceil(reporte.detalleCompras.length / pageSize)}
                 page={pageEgresos}
                 onChange={setPageEgresos}
               />

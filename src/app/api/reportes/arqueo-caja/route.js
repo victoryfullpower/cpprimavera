@@ -69,6 +69,20 @@ export async function POST(request) {
       }
     })
 
+    // Obtener todas las compras hasta la fecha de corte
+    const compras = await db.registro_compra.findMany({
+      where: {
+        fecharegistro: {
+          lte: fechaCorteObj
+        },
+        estado: true
+      },
+      include: {
+        tipoCompra: true,
+        createdBy: true
+      }
+    })
+
     // Transformar egresos para incluir detalles expandidos
     const egresosTransformados = egresos.map(egreso => ({
       ...egreso,
@@ -79,10 +93,24 @@ export async function POST(request) {
       }))
     }))
 
+    // Transformar compras para incluir detalles expandidos
+    const comprasTransformadas = compras.map(compra => ({
+      ...compra,
+      detalles: [{
+        idregistro_compra_detalle: compra.idcompra,
+        concepto: { descripcion: compra.tipoCompra?.descripcion || 'Sin tipo' },
+        descripcion: compra.descripcion || 'Sin descripción',
+        monto: compra.monto,
+        createdBy: compra.createdBy
+      }]
+    }))
+
     // Calcular totales
     const totalIngresos = ingresosTransformados.reduce((sum, ingreso) => sum + Number(ingreso.total), 0)
     const totalEgresos = egresosTransformados.reduce((sum, egreso) => sum + Number(egreso.total), 0)
-    const saldo = totalIngresos - totalEgresos
+    const totalCompras = comprasTransformadas.reduce((sum, compra) => sum + Number(compra.monto), 0)
+    const totalEgresosConCompras = totalEgresos + totalCompras
+    const saldo = totalIngresos - totalEgresosConCompras
 
     // Agrupar por método de pago
     const ingresosPorMetodo = ingresosTransformados.reduce((acc, ingreso) => {
@@ -98,10 +126,13 @@ export async function POST(request) {
       fechaCorte: fechaCorte,
       totalIngresos,
       totalEgresos,
+      totalCompras,
+      totalEgresosConCompras,
       saldo,
       ingresosPorMetodo: Object.entries(ingresosPorMetodo).map(([metodo, monto]) => ({ metodo, monto })),
       detalleIngresos: ingresosTransformados,
-      detalleEgresos: egresosTransformados
+      detalleEgresos: egresosTransformados,
+      detalleCompras: comprasTransformadas
     })
   } catch (error) {
     return NextResponse.json(

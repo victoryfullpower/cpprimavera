@@ -37,6 +37,10 @@ model User {
   updatedConceptoE concepto_egreso[] @relation("UpdatedConceptoE")
   createdReciboEgreso recibo_egreso[] @relation("CreatedReciboEgreso")
   updatedReciboEgreso recibo_egreso[] @relation("UpdatedReciboEgreso")
+  createdRegistroCompra registro_compra[] @relation("CreatedRegistroCompra")
+  updatedRegistroCompra registro_compra[] @relation("UpdatedRegistroCompra")
+  createdTipoDocumentoCompra tipo_documento_compra[] @relation("CreatedTipoDocumentoCompra")
+  updatedTipoDocumentoCompra tipo_documento_compra[] @relation("UpdatedTipoDocumentoCompra")
   
   
 
@@ -268,4 +272,35 @@ model recibo_egreso_detalle {
   // Índices para mejorar el rendimiento
   @@index([cabecera_re])
   @@index([idconcepto_egreso])
+}
+
+model tipo_documento_compra {
+  idtipodocumento Int @id @default(autoincrement())
+  descripcion String
+  estado Boolean
+  createdby Int
+  updatedby Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy User @relation("CreatedTipoDocumentoCompra", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedTipoDocumentoCompra", fields: [updatedby], references: [id])
+  registroCompra registro_compra[]
+}
+
+model registro_compra {
+  idcompra Int @id @default(autoincrement())
+  idtipocompra Int
+  fecharegistro DateTime
+  numcomprobante String
+  descripcion String
+  monto Decimal @db.Decimal(10, 4)
+  observaciones String?
+  estado Boolean
+  createdby Int
+  updatedby Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tipoCompra tipo_documento_compra @relation(fields: [idtipocompra], references: [idtipodocumento])
+  createdBy User @relation("CreatedRegistroCompra", fields: [createdby], references: [id])
+  updatedBy User @relation("UpdatedRegistroCompra", fields: [updatedby], references: [id])
 }
