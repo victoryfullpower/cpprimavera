@@ -1461,7 +1461,7 @@ export default function RegDeudaPage({ userRole }) {
                                     Cancelar
                                 </Button>
                                 
-                                {/* Mostrar botón de Solo Lectura para USER editando, o botón de guardar para ADMIN/SUPERADMIN */}
+                                {/* Mostrar botón de Solo Lectura para USER editando, o botón de guardar para todos */}
                                 {session.user.role === 'USER' && currentDetalle?.idregdeuda_detalle ? (
                                     <Button
                                         color="primary"
@@ -1471,16 +1471,14 @@ export default function RegDeudaPage({ userRole }) {
                                         Solo Lectura
                                     </Button>
                                 ) : (
-                                    (session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN') && (
-                                        <Button
-                                            color="primary"
-                                            type="submit"
-                                            form="detalle-form"
-                                            isLoading={isSubmitting}
-                                        >
-                                            {currentDetalle?.idregdeuda_detalle ? 'Guardar' : 'Crear'}
-                                        </Button>
-                                    )
+                                    <Button
+                                        color="primary"
+                                        type="submit"
+                                        form="detalle-form"
+                                        isLoading={isSubmitting}
+                                    >
+                                        {currentDetalle?.idregdeuda_detalle ? 'Guardar' : 'Crear'}
+                                    </Button>
                                 )}
                             </ModalFooter>
                         </>
