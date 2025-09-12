@@ -25,12 +25,18 @@ export default function Sidebar({ userRole }) {
   const [openMenus, setOpenMenus] = useState(new Set([]));
   const submenuRefs = useRef({});
   
-  const isActive = (href) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
   
   const showAdminOptions = ['ADMIN', 'SUPERADMIN'].includes(userRole);
   const showOperacionesOptions = ['ADMIN', 'SUPERADMIN', 'USER'].includes(userRole);
   const showReportes = ['ADMIN', 'SUPERADMIN', 'USER'].includes(userRole);
   const showMantenimiento = ['ADMIN', 'SUPERADMIN', 'USER'].includes(userRole);
+  const showDashboard = ['ADMIN', 'SUPERADMIN'].includes(userRole);
 
   const toggleMenu = (menuId) => {
     setOpenMenus(prev => {
@@ -103,6 +109,11 @@ export default function Sidebar({ userRole }) {
             ref={el => submenuRefs.current['menu-1'] = el}
             className={`submenu ${openMenus.has('menu-1') ? 'expanded' : ''}`}
           >
+            {showDashboard && (
+              <Link href="/dashboard" className={`submenu-item ${isActive('/dashboard') ? 'active' : ''}`}>
+                <FiBarChart2 className="inline mr-2" /> Dashboard
+              </Link>
+            )}
             <Link href="/dashboard/cliente" className={`submenu-item ${isActive('/dashboard/cliente') ? 'active' : ''}`}>
               <FiUsers className="inline mr-2" /> Cliente
             </Link>
@@ -230,6 +241,9 @@ export default function Sidebar({ userRole }) {
               </Link>
               <Link href="/dashboard/reportes/reporte-egresos-conceptos" className={`submenu-item ${isActive('/dashboard/reportes/reporte-egresos-conceptos') ? 'active' : ''}`}>
                 <FiPieChart className="inline mr-2" /> Reporte Egresos x Conceptos
+              </Link>
+              <Link href="/dashboard/reportes/reporte-ingresos-conceptos" className={`submenu-item ${isActive('/dashboard/reportes/reporte-ingresos-conceptos') ? 'active' : ''}`}>
+                <FiPieChart className="inline mr-2" /> Reporte Ingresos x Conceptos
               </Link>
              
             </div>

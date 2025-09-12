@@ -9,12 +9,29 @@ export async function GET() {
         const session = await getSession()
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const registros = await db.reg_deuda.findMany({
+        // Obtener todos los detalles de deudas individuales
+        const detallesDeudas = await db.reg_deuda_detalle.findMany({
             include: {
                 concepto: {
                     select: {
                         idconcepto: true,
                         descripcion: true
+                    }
+                },
+                stand: {
+                    include: {
+                        client: {
+                            select: {
+                                idcliente: true,
+                                nombre: true
+                            }
+                        }
+                    }
+                },
+                inquilino_activo: {
+                    select: {
+                        idinquilino: true,
+                        nombre: true
                     }
                 },
                 createdBy: {
@@ -28,26 +45,44 @@ export async function GET() {
                         id: true,
                         username: true
                     }
-                },
-                detalles: {
-                    include: {
-                        stand: {
-                            include: {
-                                client: {
-                                    select: {
-                                        idcliente: true,
-                                        nombre: true
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             },
             orderBy: { createdAt: 'desc' }
         })
 
-        return NextResponse.json(registros)
+        // Transformar los datos para que coincidan con la estructura esperada
+        const deudasTransformadas = detallesDeudas.map(detalle => ({
+            idregdeuda_detalle: detalle.idregdeuda_detalle,
+            idregdeuda: null, // No hay relación directa
+            idstand: detalle.idstand,
+            monto: detalle.monto,
+            mora: detalle.mora,
+            total: parseFloat(detalle.monto) + parseFloat(detalle.mora || 0),
+            estado: detalle.estado, // El estado viene del detalle individual
+            fechadeudaStand: detalle.fechadeudaStand,
+            createdAt: detalle.createdAt,
+            updatedAt: detalle.updatedAt,
+            concepto: detalle.concepto,
+            stand: detalle.stand,
+            inquilino_activo: detalle.inquilino_activo,
+            createdBy: detalle.createdBy,
+            updatedBy: detalle.updatedBy
+        }))
+
+        // Debug logs
+        console.log('=== API REG-DEUDA DEBUG ===')
+        console.log('Total detalles encontrados:', detallesDeudas.length)
+        console.log('Primeros 3 detalles:', detallesDeudas.slice(0, 3).map(d => ({
+            id: d.idregdeuda_detalle,
+            estado: d.estado,
+            monto: d.monto,
+            mora: d.mora
+        })))
+        console.log('Deudas transformadas:', deudasTransformadas.length)
+        console.log('Primeras 3 transformadas:', deudasTransformadas.slice(0, 3))
+        console.log('==========================')
+
+        return NextResponse.json(deudasTransformadas)
     } catch (error) {
         return NextResponse.json(
             { error: "Error al obtener registros: " + error.message },

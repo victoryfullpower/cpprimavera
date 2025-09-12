@@ -122,7 +122,7 @@ export async function PUT(request, { params }) {
       fechadeudaStand,
       monto,
       mora = 0,
-      estado = true,
+      estado = false, // Las deudas nuevas deben ser pendientes
       lote = false,
       idinquilino_activo
     } = body

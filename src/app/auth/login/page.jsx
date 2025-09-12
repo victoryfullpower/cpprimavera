@@ -38,7 +38,29 @@ function LoginPage() {
         }
         setError(errorMessage)
       } else {
-        router.push('/dashboard/cliente/')
+        // El login fue exitoso, obtener el rol del usuario y redirigir
+        try {
+          // Esperar un momento para que la sesión se actualice
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Obtener información del usuario
+          const userResponse = await fetch('/api/users/me')
+          if (userResponse.ok) {
+            const userData = await userResponse.json()
+            // Redirigir según el rol del usuario
+            if (userData.role === 'USER') {
+              router.push('/dashboard/stand')
+            } else {
+              router.push('/dashboard')
+            }
+          } else {
+            // Si no se puede obtener el rol, redirigir al dashboard por defecto
+            router.push('/dashboard')
+          }
+        } catch (error) {
+          console.error('Error obteniendo información del usuario:', error)
+          router.push('/dashboard')
+        }
         router.refresh()
       }
     } catch (error) {

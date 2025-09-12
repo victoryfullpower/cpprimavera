@@ -219,6 +219,35 @@ const fechaPeru = new Date(ahora.getTime() - offsetPeru);
       data: { numeroactual: numeroRecibo }
     })
 
+    // Actualizar estado de las deudas que fueron pagadas
+    console.log('🔍 Verificando deudas para marcar como pagadas...')
+    console.log('Detalles del recibo:', detalles)
+    
+    const deudasPagadas = detalles.filter(det => det.idregdeuda_detalle)
+    console.log('Deudas encontradas para marcar como pagadas:', deudasPagadas)
+    
+    if (deudasPagadas.length > 0) {
+      const deudaIds = deudasPagadas.map(det => parseInt(det.idregdeuda_detalle))
+      console.log('IDs de deudas a marcar como pagadas:', deudaIds)
+      
+      const updateResult = await db.reg_deuda_detalle.updateMany({
+        where: {
+          idregdeuda_detalle: {
+            in: deudaIds
+          }
+        },
+        data: {
+          estado: true, // Marcar como pagada
+          updatedAt: getPeruTime(),
+          updatedby: session.user.id
+        }
+      })
+      
+      console.log(`✅ Marcadas como pagadas ${updateResult.count} deudas:`, deudaIds)
+    } else {
+      console.log('⚠️ No se encontraron deudas para marcar como pagadas')
+    }
+
     return NextResponse.json(recibo, { status: 201 })
 
   } catch (error) {

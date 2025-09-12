@@ -56,17 +56,22 @@ export default function RegDeudaPage({ userRole }) {
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState('')
     const [yearFilter, setYearFilter] = useState('all')
+    const [pisoFilter, setPisoFilter] = useState('all')
+    const [pisoFilterModal, setPisoFilterModal] = useState('all')
+    const [selectedStands, setSelectedStands] = useState(new Set())
+    const [showOnlySelected, setShowOnlySelected] = useState(false)
     const [page, setPage] = useState(1)
     const { isOpen, onOpen, onOpenChange } = useDisclosure()
     const { isOpen: isLoteOpen, onOpen: onLoteOpen, onOpenChange: onLoteOpenChange } = useDisclosure()
     const { isOpen: isYearOpen, onOpen: onYearOpen, onOpenChange: onYearOpenChange } = useDisclosure()
+    const { isOpen: isPisoOpen, onOpen: onPisoOpen, onOpenChange: onPisoOpenChange } = useDisclosure()
     const [currentDetalle, setCurrentDetalle] = useState({
         idconcepto_deuda: '',
         idstand: '',
         fechadeudaStand: new Date(),
         monto: 0,
         mora: 0,
-        estado: true,
+        estado: false, // Las deudas nuevas deben ser pendientes
         idinquilino_activo: null
     })
     const [loteData, setLoteData] = useState({
@@ -104,6 +109,53 @@ export default function RegDeudaPage({ userRole }) {
         return years
     }, [])
 
+    // Generar pisos disponibles para el filtro
+    const availablePisos = useMemo(() => {
+        const pisos = [...new Set(stands.map(stand => stand.nivel))].sort((a, b) => a - b)
+        return pisos.map(piso => piso.toString())
+    }, [stands])
+
+    // Resetear selección cuando cambie el filtro de piso
+    useEffect(() => {
+        console.log('🔄 Reseteando selección por cambio de piso:', pisoFilter)
+        setSelectedStands(new Set())
+        setShowOnlySelected(false)
+    }, [pisoFilter])
+
+    // Calcular estado del checkbox maestro
+    const masterCheckboxState = useMemo(() => {
+        const visibleStands = stands.filter(stand => 
+            (pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal) &&
+            (!showOnlySelected || selectedStands.has(stand.idstand))
+        )
+        
+        if (visibleStands.length === 0) return { checked: false, indeterminate: false }
+        
+        const selectedCount = visibleStands.filter(stand => selectedStands.has(stand.idstand)).length
+        
+        console.log('🔍 Master checkbox state:', {
+            pisoFilter,
+            visibleStandsCount: visibleStands.length,
+            selectedCount,
+            selectedStands: Array.from(selectedStands),
+            checked: selectedCount === visibleStands.length,
+            indeterminate: selectedCount > 0 && selectedCount < visibleStands.length
+        })
+        
+        return {
+            checked: selectedCount === visibleStands.length,
+            indeterminate: selectedCount > 0 && selectedCount < visibleStands.length
+        }
+    }, [stands, pisoFilterModal, showOnlySelected, selectedStands])
+
+    // Manejar el estado indeterminate del checkbox maestro
+    useEffect(() => {
+        const masterCheckbox = document.querySelector('input[type="checkbox"]:first-of-type')
+        if (masterCheckbox) {
+            masterCheckbox.indeterminate = masterCheckboxState.indeterminate
+        }
+    }, [masterCheckboxState.indeterminate])
+
     // Definir columnas dinámicamente según el rol
     const columns = useMemo(() => {
         const baseColumns = [
@@ -125,7 +177,7 @@ export default function RegDeudaPage({ userRole }) {
         } else if (userRole === 'ADMIN') {
             return [...baseColumns, { key: 'acciones', label: 'Acciones', sortable: false }]
         } else {
-            return baseColumns
+        return baseColumns
         }
     }, [userRole])
 
@@ -201,23 +253,75 @@ export default function RegDeudaPage({ userRole }) {
             const matchesYear = yearFilter === 'all' || 
                 format(new Date(detalle.fechadeudaStand), 'yyyy') === yearFilter
 
-            return matchesFilter && matchesYear
+            const matchesPiso = pisoFilter === 'all' || 
+                detalle.stand?.nivel?.toString() === pisoFilter
+
+            return matchesFilter && matchesYear && matchesPiso
         })
 
         return sortData(filtered)
-    }, [detalles, filter, yearFilter, sortData])
+    }, [detalles, filter, yearFilter, pisoFilter, sortData])
 
     // Paginar datos
-    const paginatedItems = useMemo(() => 
-        rowsPerPage === 'all' 
+    const paginatedItems = useMemo(() => {
+        const result = rowsPerPage === 'all' 
             ? filteredAndSortedItems 
             : filteredAndSortedItems.slice((page - 1) * rowsPerPage, page * rowsPerPage)
-        , [filteredAndSortedItems, page, rowsPerPage])
+        
+        return result
+    }, [filteredAndSortedItems, page, rowsPerPage])
 
     // Resetear página cuando cambie rowsPerPage
     const handleRowsPerPageChange = (value) => {
         setRowsPerPage(value === 'all' ? 'all' : parseInt(value))
         setPage(1)
+    }
+
+    // Funciones para manejar selección de stands
+    const toggleStandSelection = (standId) => {
+        console.log('🔄 Toggle stand selection:', standId)
+        setSelectedStands(prev => {
+            const newSet = new Set(prev)
+            if (newSet.has(standId)) {
+                newSet.delete(standId)
+                console.log('❌ Removido stand:', standId)
+            } else {
+                newSet.add(standId)
+                console.log('✅ Agregado stand:', standId)
+            }
+            console.log('📋 Nueva selección:', Array.from(newSet))
+            return newSet
+        })
+    }
+
+    const selectAllStands = () => {
+        const visibleStands = stands.filter(stand => 
+            pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal
+        )
+        console.log('✅ Seleccionando todos los stands visibles:', visibleStands.map(s => s.idstand))
+        setSelectedStands(new Set(visibleStands.map(stand => stand.idstand)))
+    }
+
+    const deselectAllStands = () => {
+        console.log('❌ Deseleccionando todos los stands')
+        setSelectedStands(new Set())
+    }
+
+    const invertStandSelection = () => {
+        const visibleStands = stands.filter(stand => 
+            pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal
+        )
+        const visibleStandIds = new Set(visibleStands.map(stand => stand.idstand))
+        const newSelection = new Set()
+        
+        // Agregar stands que no están seleccionados
+        visibleStandIds.forEach(id => {
+            if (!selectedStands.has(id)) {
+                newSelection.add(id)
+            }
+        })
+        
+        setSelectedStands(newSelection)
     }
 
     // Función para editar un detalle
@@ -260,7 +364,7 @@ export default function RegDeudaPage({ userRole }) {
         onOpen()
     }
 
-        // Función para renderizar celdas
+    // Función para renderizar celdas
     const renderCell = useCallback((item, columnKey) => {
         switch (columnKey) {
             case "idstand":
@@ -295,7 +399,7 @@ export default function RegDeudaPage({ userRole }) {
             case "estado":
                 return (
                     <Chip color={item.estado ? "success" : "danger"}>
-                        {item.estado ? "Activo" : "Inactivo"}
+                        {item.estado ? "Pagado" : "Pendiente"}
                     </Chip>
                 )
             case "inquilino":
@@ -381,6 +485,7 @@ export default function RegDeudaPage({ userRole }) {
             setStands(standsData)
             console.log('Stands cargados:', standsData)
             console.log('Detalles de deuda cargados:', detallesData)
+            console.log('Total de detalles cargados:', detallesData.length)
             console.log('Ejemplo de inquilino_activo:', detallesData[0]?.inquilino_activo)
         } catch (error) {
             toast.error(error.message)
@@ -697,7 +802,7 @@ export default function RegDeudaPage({ userRole }) {
             fechadeudaStand: new Date(),
             monto: 0,
             mora: 0,
-            estado: true,
+            estado: false, // Las deudas nuevas deben ser pendientes
             idinquilino_activo: null
         })
         setInquilinoPaga(false)
@@ -706,6 +811,7 @@ export default function RegDeudaPage({ userRole }) {
     }
 
     const initCreateLote = () => {
+        console.log('🆕 Iniciando nuevo lote - reseteando todo')
         setLoteData({
             fechadeudaStand: new Date(),
             idconcepto_deuda: '',
@@ -715,7 +821,20 @@ export default function RegDeudaPage({ userRole }) {
         })
         setInquilinosActivos({}) // Limpiar inquilinos activos
         setInquilinosBorrados({}) // Limpiar inquilinos borrados
+        setSelectedStands(new Set()) // Resetear selección de stands
+        setShowOnlySelected(false) // Resetear filtro de vista
+        setPisoFilter('all') // Resetear filtro de piso también
+        setPisoFilterModal('all') // Resetear filtro de piso del modal
         onLoteOpen()
+    }
+
+    const handleLoteModalClose = () => {
+        console.log('❌ Cerrando modal - reseteando todo')
+        setSelectedStands(new Set()) // Resetear selección de stands
+        setShowOnlySelected(false) // Resetear filtro de vista
+        setPisoFilter('all') // Resetear filtro de piso también
+        setPisoFilterModal('all') // Resetear filtro de piso del modal
+        onLoteOpenChange()
     }
 
 
@@ -761,9 +880,13 @@ export default function RegDeudaPage({ userRole }) {
         const montoRedondeado = parseFloat(monto.toFixed(4))
 
         if (!isNaN(montoRedondeado)) {
+        // Aplicar a todos los stands del piso filtrado
+        const standsToUpdate = stands.filter(stand => 
+            pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal
+        )
             setLoteData(prev => ({
                 ...prev,
-                detalles: stands.map(stand => ({
+            detalles: standsToUpdate.map(stand => ({
                     idstand: stand.idstand,
                     monto: montoRedondeado,
                     mora: prev.detalles.find(d => d.idstand === stand.idstand)?.mora || 0
@@ -789,6 +912,10 @@ export default function RegDeudaPage({ userRole }) {
         const moraRedondeada = parseFloat(mora.toFixed(4))
 
         if (!isNaN(moraRedondeada)) {
+            // Aplicar a todos los stands del piso filtrado
+            const standsToUpdate = stands.filter(stand => 
+                pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal
+            )
             setLoteData(prev => ({
                 ...prev,
                 detalles: prev.detalles.length > 0
@@ -796,7 +923,7 @@ export default function RegDeudaPage({ userRole }) {
                         ...d,
                         mora: moraRedondeada
                     }))
-                    : stands.map(stand => ({
+                    : standsToUpdate.map(stand => ({
                         idstand: stand.idstand,
                         monto: 0,
                         mora: moraRedondeada
@@ -826,10 +953,13 @@ export default function RegDeudaPage({ userRole }) {
         setIsLoteSubmitting(true)
 
         try {
-            const detallesValidos = loteData.detalles.filter(d => d.monto > 0 || d.mora > 0)
+            // Solo procesar stands seleccionados
+            const detallesValidos = loteData.detalles
+                .filter(d => selectedStands.has(d.idstand)) // Solo stands seleccionados
+                .filter(d => d.monto > 0 || d.mora > 0) // Con monto o mora
 
             if (detallesValidos.length === 0) {
-                toast.error('Debe ingresar al menos un monto o mora')
+                toast.error('Debe seleccionar al menos un stand y ingresar monto o mora')
                 return
             }
 
@@ -848,7 +978,7 @@ export default function RegDeudaPage({ userRole }) {
                         fechadeudaStand: loteData.fechadeudaStand,
                         monto: parseFloat(detalle.monto || 0),
                         mora: parseFloat(detalle.mora || 0),
-                        estado: true,
+                        estado: false, // Las deudas nuevas deben ser pendientes
                         idinquilino_activo: idinquilino_activo
                     })
                 })
@@ -859,6 +989,10 @@ export default function RegDeudaPage({ userRole }) {
             toast.success(`${detallesValidos.length} detalles de deuda creados correctamente`)
             setInquilinosActivos({}) // Limpiar inquilinos activos
             setInquilinosBorrados({}) // Limpiar inquilinos borrados
+            setSelectedStands(new Set()) // Resetear selección de stands
+            setShowOnlySelected(false) // Resetear filtro de vista
+            setPisoFilter('all') // Resetear filtro de piso también
+            setPisoFilterModal('all') // Resetear filtro de piso del modal
             onLoteOpenChange()
             fetchData() // Recargar datos
         } catch (error) {
@@ -983,13 +1117,14 @@ export default function RegDeudaPage({ userRole }) {
                             </SelectItem>
                         ))}
                     </Select>
-                    {(filter || (yearFilter && yearFilter !== 'all')) && (
+                    {(filter || (yearFilter && yearFilter !== 'all') || (pisoFilter && pisoFilter !== 'all')) && (
                         <Button
                             color="default"
                             variant="flat"
                             onPress={() => {
                                 setFilter('')
                                 setYearFilter('all')
+                                setPisoFilter('all')
                                 setPage(1)
                             }}
                         >
@@ -1017,8 +1152,11 @@ export default function RegDeudaPage({ userRole }) {
                 <Table
                     aria-label="Tabla de detalles de deuda"
                     bottomContent={
-                        rowsPerPage !== 'all' && (
-                            <div className="flex w-full justify-center">
+                        <div className="flex w-full justify-between items-center">
+                            <div className="text-sm text-gray-500">
+                                Mostrando {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, filteredAndSortedItems.length)} de {filteredAndSortedItems.length} registros
+                            </div>
+                            {rowsPerPage !== 'all' && (
                                 <Pagination
                                     isCompact
                                     showControls
@@ -1028,8 +1166,8 @@ export default function RegDeudaPage({ userRole }) {
                                     total={Math.ceil(filteredAndSortedItems.length / rowsPerPage)}
                                     onChange={setPage}
                                 />
-                            </div>
-                        )
+                            )}
+                        </div>
                     }
                     classNames={{
                         wrapper: "min-h-[400px] w-full",
@@ -1351,7 +1489,7 @@ export default function RegDeudaPage({ userRole }) {
             </Modal>
 
             {/* Modal para registro por lote */}
-            <Modal isOpen={isLoteOpen} onOpenChange={onLoteOpenChange} size="5xl" scrollBehavior="inside">
+            <Modal isOpen={isLoteOpen} onOpenChange={handleLoteModalClose} size="5xl" scrollBehavior="inside">
                 <ModalContent className="h-[95vh]" style={{ maxWidth: "90rem", justifyContent: "center" }}>
                     {(onClose) => (
                         <>
@@ -1430,8 +1568,152 @@ export default function RegDeudaPage({ userRole }) {
 
                                         <div className="lg:col-span-3">
                                         <Card>
-                                            <CardHeader className="font-bold">Detalle de Deuda por Stand</CardHeader>
+                                            <CardHeader className="flex justify-between items-center">
+                                                <span className="font-bold">Detalle de Deuda por Stand</span>
+                                                <div className="flex gap-2 items-center">
+                                                    <Popover className='bg-white' isOpen={isPisoOpen} onOpenChange={onPisoOpenChange} placement="bottom-start">
+                                                        <PopoverTrigger className='bg-white'>
+                                                            <Button
+                                                                variant="bordered"
+                                                                size="sm"
+                                                                className="w-24 justify-between"
+                                                                endContent={<span className="text-default-400">▼</span>}
+                                                            >
+                                                                {pisoFilterModal === 'all' ? 'Todos' : `Piso ${pisoFilterModal}` || 'Piso'}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent 
+                                                            className="w-24 p-0" 
+                                                            style={{ 
+                                                                backgroundColor: 'white',
+                                                                color: 'black',
+                                                                '--nextui-colors-background': 'white',
+                                                                '--nextui-colors-foreground': 'black'
+                                                            }}
+                                                        >
+                                                            <div 
+                                                                className="max-h-[300px] overflow-hidden" 
+                                                                style={{ 
+                                                                    backgroundColor: 'white',
+                                                                    '--nextui-colors-background': 'white'
+                                                                }}
+                                                            >
+                                                                {/* Opción "Todos" fija en la parte superior */}
+                                                                <div 
+                                                                    className="px-3 py-2 text-sm font-semibold cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200"
+                                                                    style={{ 
+                                                                        backgroundColor: 'white',
+                                                                        color: 'black',
+                                                                        '--nextui-colors-background': 'white',
+                                                                        '--nextui-colors-foreground': 'black'
+                                                                    }}
+                                                                    onClick={() => {
+                                                                        console.log('🏠 Cambiando a piso: all')
+                                                                        setPisoFilterModal('all')
+                                                                        setSelectedStands(new Set())
+                                                                        setShowOnlySelected(false)
+                                                                        onPisoOpenChange()
+                                                                    }}
+                                                                >
+                                                                    Todos
+                                                                </div>
+                                                                
+                                                                {/* Lista scrolleable de pisos */}
+                                                                <div 
+                                                                    className="max-h-[250px] overflow-y-auto" 
+                                                                    style={{ 
+                                                                        backgroundColor: 'white',
+                                                                        '--nextui-colors-background': 'white'
+                                                                    }}
+                                                                >
+                                                                    {availablePisos.map((piso) => (
+                                                                        <div
+                                                                            key={piso}
+                                                                            className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
+                                                                            style={{ 
+                                                                                backgroundColor: 'white',
+                                                                                color: 'black',
+                                                                                '--nextui-colors-background': 'white',
+                                                                                '--nextui-colors-foreground': 'black'
+                                                                            }}
+                                                                            onClick={() => {
+                                                                                console.log('🏠 Cambiando a piso:', piso)
+                                                                                setPisoFilterModal(piso)
+                                                                                setSelectedStands(new Set())
+                                                                                setShowOnlySelected(false)
+                                                                                onPisoOpenChange()
+                                                                            }}
+                                                                        >
+                                                                            Piso {piso}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {pisoFilterModal !== 'all' && (
+                                                        <Button
+                                                            size="sm"
+                                                            color="default"
+                                                            variant="flat"
+                                                            onPress={() => {
+                                                                console.log('🧹 Limpiando filtro de piso')
+                                                                setPisoFilterModal('all')
+                                                                setSelectedStands(new Set())
+                                                                setShowOnlySelected(false)
+                                                            }}
+                                                        >
+                                                            Limpiar
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </CardHeader>
                                             <CardBody>
+                                                {/* Controles de selección */}
+                                                <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-medium">
+                                                                {selectedStands.size} de {stands.filter(stand => pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal).length} stands seleccionados
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                color="primary"
+                                                                variant="flat"
+                                                                onPress={selectAllStands}
+                                                            >
+                                                                Seleccionar Todos
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                color="default"
+                                                                variant="flat"
+                                                                onPress={deselectAllStands}
+                                                            >
+                                                                Deseleccionar Todos
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                color="secondary"
+                                                                variant="flat"
+                                                                onPress={invertStandSelection}
+                                                            >
+                                                                Invertir
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Switch
+                                                            isSelected={showOnlySelected}
+                                                            onValueChange={setShowOnlySelected}
+                                                            size="sm"
+                                                        />
+                                                        <span className="text-sm">Mostrar solo seleccionados</span>
+                                                    </div>
+                                                </div>
+
                                                 {loteData.idconcepto_deuda && conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)?.inquilinopaga && (
                                                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                                         <div className="flex items-center gap-2 text-blue-800">
@@ -1448,6 +1730,24 @@ export default function RegDeudaPage({ userRole }) {
                                                     {stands && stands.length > 0 ? (
                                                         <Table aria-label="Tabla de detalles">
                                                         <TableHeader>
+                                                            <TableColumn width="50px">
+                                                                <input
+                                                                    key={`master-checkbox-${masterCheckboxState.checked}-${masterCheckboxState.indeterminate}`}
+                                                                    type="checkbox"
+                                                                    checked={masterCheckboxState.checked}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            selectAllStands()
+                                                                        } else {
+                                                                            deselectAllStands()
+                                                                        }
+                                                                    }}
+                                                                    className="rounded"
+                                                                    style={{
+                                                                        accentColor: '#0070f3'
+                                                                    }}
+                                                                />
+                                                            </TableColumn>
                                                             <TableColumn>Stand</TableColumn>
                                                             <TableColumn>Cliente</TableColumn>
                                                             <TableColumn width="150px" className={loteData.idconcepto_deuda && conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)?.inquilinopaga ? '' : 'hidden'}>
@@ -1458,13 +1758,27 @@ export default function RegDeudaPage({ userRole }) {
                                                             <TableColumn width="150px">Total (S/.)</TableColumn>
                                                         </TableHeader>
                                                         <TableBody>
-                                                            {stands.map(stand => {
+                                                            {stands
+                                                                .filter(stand => {
+                                                                    const matchesPiso = pisoFilterModal === 'all' || stand.nivel?.toString() === pisoFilterModal
+                                                                    const matchesSelection = !showOnlySelected || selectedStands.has(stand.idstand)
+                                                                    return matchesPiso && matchesSelection
+                                                                })
+                                                                .map(stand => {
                                                                 const detalle = loteData.detalles.find(d => d.idstand === stand.idstand) || {}
                                                                 const total = (parseFloat(detalle.monto || 0) + parseFloat(detalle.mora || 0)).toFixed(4)
                                                                 const showInquilino = loteData.idconcepto_deuda && conceptos.find(c => c.idconcepto === loteData.idconcepto_deuda)?.inquilinopaga
 
                                                                 return (
                                                                     <TableRow key={stand.idstand}>
+                                                                        <TableCell>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={selectedStands.has(stand.idstand)}
+                                                                                onChange={() => toggleStandSelection(stand.idstand)}
+                                                                                className="rounded"
+                                                                            />
+                                                                        </TableCell>
                                                                         <TableCell>{stand.descripcion}</TableCell>
                                                                         <TableCell>{stand.client?.nombre || 'Sin asignar'}</TableCell>
                                                                         <TableCell className={showInquilino ? '' : 'hidden'}>
@@ -1548,7 +1862,7 @@ export default function RegDeudaPage({ userRole }) {
                             </ModalBody>
                             <Divider />
                             <ModalFooter>
-                                <Button color="danger" variant="light" onPress={onClose}>
+                                <Button color="danger" variant="light" onPress={handleLoteModalClose}>
                                     Cancelar
                                 </Button>
                                 <Button

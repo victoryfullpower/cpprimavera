@@ -213,6 +213,27 @@ export async function PUT(request, { params }) {
       }
     })
 
+    // Actualizar estado de las deudas que fueron pagadas
+    const deudasPagadas = detalles.filter(det => det.idregdeuda_detalle)
+    if (deudasPagadas.length > 0) {
+      const deudaIds = deudasPagadas.map(det => parseInt(det.idregdeuda_detalle))
+      
+      await db.reg_deuda_detalle.updateMany({
+        where: {
+          idregdeuda_detalle: {
+            in: deudaIds
+          }
+        },
+        data: {
+          estado: true, // Marcar como pagada
+          updatedAt: getPeruTime(),
+          updatedby: session.user.id
+        }
+      })
+      
+      console.log(`Marcadas como pagadas ${deudaIds.length} deudas:`, deudaIds)
+    }
+
     return NextResponse.json(recibo)
 
   } catch (error) {
