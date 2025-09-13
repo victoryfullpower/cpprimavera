@@ -58,6 +58,8 @@ export default function RegDeudaPage({ userRole }) {
     const [yearFilter, setYearFilter] = useState('all')
     const [pisoFilter, setPisoFilter] = useState('all')
     const [pisoFilterModal, setPisoFilterModal] = useState('all')
+    const [fechaInicio, setFechaInicio] = useState('')
+    const [fechaFin, setFechaFin] = useState('')
     const [selectedStands, setSelectedStands] = useState(new Set())
     const [showOnlySelected, setShowOnlySelected] = useState(false)
     const [page, setPage] = useState(1)
@@ -256,11 +258,16 @@ export default function RegDeudaPage({ userRole }) {
             const matchesPiso = pisoFilter === 'all' || 
                 detalle.stand?.nivel?.toString() === pisoFilter
 
-            return matchesFilter && matchesYear && matchesPiso
+            // Filtro por rango de fechas
+            const detalleFecha = new Date(detalle.fechadeudaStand)
+            const matchesFechaInicio = !fechaInicio || detalleFecha >= new Date(fechaInicio)
+            const matchesFechaFin = !fechaFin || detalleFecha <= new Date(fechaFin + 'T23:59:59')
+
+            return matchesFilter && matchesYear && matchesPiso && matchesFechaInicio && matchesFechaFin
         })
 
         return sortData(filtered)
-    }, [detalles, filter, yearFilter, pisoFilter, sortData])
+    }, [detalles, filter, yearFilter, pisoFilter, fechaInicio, fechaFin, sortData])
 
     // Paginar datos
     const paginatedItems = useMemo(() => {
@@ -1015,8 +1022,30 @@ export default function RegDeudaPage({ userRole }) {
         <div className="p-4 w-full">
             <ToastContainer position="bottom-right" />
 
-            <div className="flex items-center justify-between mb-6 gap-4">
+            {/* Título y botón limpiar filtros */}
+            <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-white">Gestión de Deudas por Stand</h1>
+                {(filter || (yearFilter && yearFilter !== 'all') || (pisoFilter && pisoFilter !== 'all') || fechaInicio || fechaFin) && (
+                    <Button
+                        color="warning"
+                        variant="solid"
+                        onPress={() => {
+                            setFilter('')
+                            setYearFilter('all')
+                            setPisoFilter('all')
+                            setFechaInicio('')
+                            setFechaFin('')
+                            setPage(1)
+                        }}
+                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                        Limpiar Filtros
+                    </Button>
+                )}
+            </div>
+
+            {/* Filtros y botones */}
+            <div className="flex items-center justify-between mb-6 gap-4">
                 <div className="flex gap-3 items-center flex-shrink-0">
                     <Popover className='bg-white' isOpen={isYearOpen} onOpenChange={onYearOpenChange} placement="bottom-start">
                         <PopoverTrigger className='bg-white'>
@@ -1093,6 +1122,111 @@ export default function RegDeudaPage({ userRole }) {
                             </div>
                         </PopoverContent>
                     </Popover>
+                    
+                    {/* Filtro por Piso */}
+                    <Popover className='bg-white' isOpen={isPisoOpen} onOpenChange={onPisoOpenChange} placement="bottom-start">
+                        <PopoverTrigger className='bg-white'>
+                            <Button
+                                variant="bordered"
+                                className="w-32 justify-between"
+                                endContent={<span className="text-default-400">▼</span>}
+                            >
+                                {pisoFilter === 'all' ? 'Todos' : `Piso ${pisoFilter}`}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent 
+                            className="w-32 p-0" 
+                            style={{ 
+                                backgroundColor: 'white',
+                                color: 'black',
+                                '--nextui-colors-background': 'white',
+                                '--nextui-colors-foreground': 'black'
+                            }}
+                        >
+                            <div 
+                                className="max-h-[300px] overflow-hidden" 
+                                style={{ 
+                                    backgroundColor: 'white',
+                                    '--nextui-colors-background': 'white'
+                                }}
+                            >
+                                {/* Opción "Todos" fija en la parte superior */}
+                                <div 
+                                    className="px-3 py-2 text-sm font-semibold cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200"
+                                    style={{ 
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        '--nextui-colors-background': 'white',
+                                        '--nextui-colors-foreground': 'black'
+                                    }}
+                                    onClick={() => {
+                                        setPisoFilter('all')
+                                        setPage(1)
+                                        onPisoOpenChange()
+                                    }}
+                                >
+                                    Todos
+                                </div>
+                                
+                                {/* Lista scrolleable de pisos */}
+                                <div 
+                                    className="max-h-[250px] overflow-y-auto" 
+                                    style={{ 
+                                        backgroundColor: 'white',
+                                        '--nextui-colors-background': 'white'
+                                    }}
+                                >
+                                    {availablePisos.map((piso) => (
+                                        <div
+                                            key={piso}
+                                            className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
+                                            style={{ 
+                                                backgroundColor: 'white',
+                                                color: 'black',
+                                                '--nextui-colors-background': 'white',
+                                                '--nextui-colors-foreground': 'black'
+                                            }}
+                                            onClick={() => {
+                                                setPisoFilter(piso)
+                                                setPage(1)
+                                                onPisoOpenChange()
+                                            }}
+                                        >
+                                            Piso {piso}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                    
+                    {/* Filtro por Rango de Fechas */}
+                    <div className="flex gap-2 items-center">
+                        <Input
+                            type="date"
+                            placeholder="Fecha inicio"
+                            value={fechaInicio}
+                            onChange={(e) => {
+                                setFechaInicio(e.target.value)
+                                setPage(1)
+                            }}
+                            className="w-40"
+                            size="sm"
+                        />
+                        <span className="text-gray-400">-</span>
+                        <Input
+                            type="date"
+                            placeholder="Fecha fin"
+                            value={fechaFin}
+                            onChange={(e) => {
+                                setFechaFin(e.target.value)
+                                setPage(1)
+                            }}
+                            className="w-40"
+                            size="sm"
+                        />
+                    </div>
+                    
                     <Input
                         placeholder="Filtrar por concepto, stand, cliente o fecha..."
                         value={filter}
@@ -1117,20 +1251,6 @@ export default function RegDeudaPage({ userRole }) {
                             </SelectItem>
                         ))}
                     </Select>
-                    {(filter || (yearFilter && yearFilter !== 'all') || (pisoFilter && pisoFilter !== 'all')) && (
-                        <Button
-                            color="default"
-                            variant="flat"
-                            onPress={() => {
-                                setFilter('')
-                                setYearFilter('all')
-                                setPisoFilter('all')
-                                setPage(1)
-                            }}
-                        >
-                            Limpiar Filtros
-                        </Button>
-                    )}
                     <div className="flex gap-2">
                         <Button
                             color="primary"

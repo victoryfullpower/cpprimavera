@@ -245,6 +245,9 @@ export default function Sidebar({ userRole }) {
               <Link href="/dashboard/reportes/reporte-ingresos-conceptos" className={`submenu-item ${isActive('/dashboard/reportes/reporte-ingresos-conceptos') ? 'active' : ''}`}>
                 <FiPieChart className="inline mr-2" /> Reporte Ingresos x Conceptos
               </Link>
+              <Link href="/dashboard/reportes/reporte-registro-deudas" className={`submenu-item ${isActive('/dashboard/reportes/reporte-registro-deudas') ? 'active' : ''}`}>
+                <FiFileText className="inline mr-2" /> Reporte Registro Deudas
+              </Link>
              
             </div>
           </div>

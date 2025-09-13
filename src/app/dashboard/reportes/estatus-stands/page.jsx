@@ -22,7 +22,10 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
-    useDisclosure
+    useDisclosure,
+    Popover,
+    PopoverTrigger,
+    PopoverContent
 } from '@nextui-org/react'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -40,11 +43,13 @@ export default function EstatusStandsPage() {
     const [filterStand, setFilterStand] = useState('')
     const [filterInquilino, setFilterInquilino] = useState('')
     const [filterCliente, setFilterCliente] = useState('')
+    const [filterPiso, setFilterPiso] = useState('')
     const [selectedStand, setSelectedStand] = useState('')
     const [selectedInquilino, setSelectedInquilino] = useState('')
     const [selectedStandForDetail, setSelectedStandForDetail] = useState(null)
     
     const { isOpen: isDetailOpen, onOpen: onDetailOpen, onClose: onDetailClose } = useDisclosure()
+    const { isOpen: isPisoOpen, onOpen: onPisoOpen, onOpenChange: onPisoOpenChange } = useDisclosure()
     const printRef = useRef()
     const detailPrintRef = useRef()
 
@@ -142,6 +147,15 @@ export default function EstatusStandsPage() {
             const standsData = await standsRes.json()
             const deudasData = await deudasRes.json()
 
+            console.log('=== DATOS CARGADOS ===')
+            console.log('Stands:', standsData.length)
+            console.log('Deudas:', deudasData.length)
+            console.log('Primera deuda:', deudasData[0])
+            console.log('Deudas por estado:', {
+                pagadas: deudasData.filter(d => d.estado === true).length,
+                pendientes: deudasData.filter(d => d.estado === false).length
+            })
+
             setStands(standsData)
             setDeudas(deudasData)
             
@@ -158,6 +172,12 @@ export default function EstatusStandsPage() {
     useEffect(() => {
         fetchData()
     }, [])
+
+    // Obtener pisos únicos disponibles
+    const availablePisos = useMemo(() => {
+        const pisos = [...new Set(stands.map(stand => stand.nivel).filter(nivel => nivel !== null && nivel !== undefined))]
+        return pisos.sort((a, b) => a - b)
+    }, [stands])
 
     // Obtener inquilinos activos por stand
     const getInquilinoActivo = (idstand) => {
@@ -289,17 +309,29 @@ export default function EstatusStandsPage() {
 
     // Calcular deudas por stand
     const getDeudasPorStand = (idstand) => {
-        return deudas.filter(deuda => deuda.idstand === idstand && deuda.estado)
+        const deudasStand = deudas.filter(deuda => deuda.idstand === idstand)
+        console.log(`=== DEUDAS PARA STAND ${idstand} ===`)
+        console.log('Total deudas encontradas:', deudasStand.length)
+        console.log('Deudas:', deudasStand.map(d => ({
+            id: d.idregdeuda_detalle,
+            monto: d.monto,
+            mora: d.mora,
+            estado: d.estado,
+            concepto: d.concepto?.descripcion
+        })))
+        return deudasStand
     }
 
     // Calcular total de deudas por stand
     const getTotalDeudasStand = (idstand) => {
         const deudasStand = getDeudasPorStand(idstand)
-        return deudasStand.reduce((total, deuda) => {
+        const total = deudasStand.reduce((total, deuda) => {
             const monto = Number(deuda.monto) || 0
             const mora = Number(deuda.mora) || 0
             return total + monto + mora
         }, 0)
+        console.log(`Total deudas para stand ${idstand}:`, total)
+        return total
     }
 
     // Calcular total pagado por stand
@@ -351,8 +383,14 @@ export default function EstatusStandsPage() {
             })
         }
 
+        if (filterPiso) {
+            filtered = filtered.filter(stand => 
+                stand.nivel?.toString() === filterPiso
+            )
+        }
+
         return filtered
-    }, [stands, filterStand, filterCliente, filterInquilino, selectedStand, selectedInquilino, inquilinosActivos])
+    }, [stands, filterStand, filterCliente, filterInquilino, filterPiso, selectedStand, selectedInquilino, inquilinosActivos])
 
 
 
@@ -385,7 +423,7 @@ export default function EstatusStandsPage() {
                     </h3>
                 </CardHeader>
                 <CardBody>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <Input
                             placeholder="Buscar por stand..."
                             value={filterStand}
@@ -404,6 +442,44 @@ export default function EstatusStandsPage() {
                             onChange={(e) => setFilterInquilino(e.target.value)}
                             startContent={<FaSearch />}
                         />
+                        <Popover isOpen={isPisoOpen} onOpenChange={onPisoOpenChange} placement="bottom-start">
+                            <PopoverTrigger>
+                                <Button
+                                    variant="bordered"
+                                    className="w-full justify-between h-12 px-3 py-2 text-left"
+                                    endContent={<span className="text-default-400">▼</span>}
+                                >
+                                    <span className={filterPiso === '' ? 'text-default-500' : 'text-foreground'}>
+                                        {filterPiso === '' ? 'Seleccionar piso' : `Piso ${filterPiso}`}
+                                    </span>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" style={{ minWidth: 'var(--trigger-width)' }}>
+                                <div className="max-h-[200px] overflow-y-auto">
+                                    <div
+                                        className="px-3 py-2 cursor-pointer hover:bg-default-100 text-sm"
+                                        onClick={() => {
+                                            setFilterPiso('')
+                                            onPisoOpenChange()
+                                        }}
+                                    >
+                                        Todos los pisos
+                                    </div>
+                                    {availablePisos.map((piso) => (
+                                        <div
+                                            key={piso}
+                                            className="px-3 py-2 cursor-pointer hover:bg-default-100 text-sm"
+                                            onClick={() => {
+                                                setFilterPiso(piso.toString())
+                                                onPisoOpenChange()
+                                            }}
+                                        >
+                                            Piso {piso}
+                                        </div>
+                                    ))}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                         <Select
                             placeholder="Filtrar por stand específico"
                             value={selectedStand}
