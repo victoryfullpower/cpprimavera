@@ -20,7 +20,8 @@ import {
     Popover,
     PopoverTrigger,
     PopoverContent,
-    useDisclosure
+    useDisclosure,
+    Pagination
 } from '@nextui-org/react'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -38,6 +39,8 @@ export default function ReporteRegistroDeudasPage() {
     const [conceptos, setConceptos] = useState([])
     const [stands, setStands] = useState([])
     const [loading, setLoading] = useState(true)
+    const [page, setPage] = useState(1)
+    const [rowsPerPage, setRowsPerPage] = useState(50)
     const [filtros, setFiltros] = useState({
         fechaDesde: '',
         fechaHasta: '',
@@ -47,9 +50,20 @@ export default function ReporteRegistroDeudasPage() {
         estado: '',
         busqueda: ''
     })
+    const [busquedaTemporal, setBusquedaTemporal] = useState('')
     
     const { isOpen: isPisoOpen, onOpen: onPisoOpen, onOpenChange: onPisoOpenChange } = useDisclosure()
     const printRef = useRef()
+
+    // Opciones para registros por página
+    const rowsPerPageOptions = [
+        { key: "25", label: "25" },
+        { key: "50", label: "50" },
+        { key: "100", label: "100" },
+        { key: "250", label: "250" },
+        { key: "500", label: "500" },
+        { key: "all", label: "Todos" }
+    ]
 
     const handlePrint = useReactToPrint({
         contentRef: printRef,
@@ -123,65 +137,100 @@ export default function ReporteRegistroDeudasPage() {
         return Array.from(pisos).sort((a, b) => a - b)
     }, [stands])
 
-    // Filtrar datos
+    // Filtrar datos (optimizado)
     const datosFiltrados = useMemo(() => {
         let filtered = detalles
 
-        // Filtro por rango de fechas
+        // Filtro por rango de fechas (optimizado)
         if (filtros.fechaDesde) {
+            const fechaDesde = new Date(filtros.fechaDesde)
             filtered = filtered.filter(detalle => 
-                new Date(detalle.fechadeudaStand) >= new Date(filtros.fechaDesde)
+                new Date(detalle.fechadeudaStand) >= fechaDesde
             )
         }
 
         if (filtros.fechaHasta) {
+            const fechaHasta = new Date(filtros.fechaHasta + 'T23:59:59')
             filtered = filtered.filter(detalle => 
-                new Date(detalle.fechadeudaStand) <= new Date(filtros.fechaHasta + 'T23:59:59')
+                new Date(detalle.fechadeudaStand) <= fechaHasta
             )
         }
 
-        // Filtro por concepto
+        // Filtro por concepto (optimizado)
         if (filtros.idconcepto_deuda) {
+            const conceptoId = parseInt(filtros.idconcepto_deuda)
             filtered = filtered.filter(detalle => 
-                detalle.idconcepto_deuda === parseInt(filtros.idconcepto_deuda)
+                detalle.idconcepto_deuda === conceptoId
             )
         }
 
-        // Filtro por stand
+        // Filtro por stand (optimizado)
         if (filtros.idstand) {
+            const standId = parseInt(filtros.idstand)
             filtered = filtered.filter(detalle => 
-                detalle.idstand === parseInt(filtros.idstand)
+                detalle.idstand === standId
             )
         }
 
-        // Filtro por piso
+        // Filtro por piso (optimizado)
         if (filtros.piso) {
             filtered = filtered.filter(detalle => 
                 detalle.stand?.nivel?.toString() === filtros.piso
             )
         }
 
-        // Filtro por estado
+        // Filtro por estado (optimizado)
         if (filtros.estado !== '') {
+            const estadoBoolean = filtros.estado === 'true'
             filtered = filtered.filter(detalle => 
-                detalle.estado === (filtros.estado === 'true')
+                detalle.estado === estadoBoolean
             )
         }
 
-        // Filtro por búsqueda general
+        // Filtro por búsqueda general (optimizado)
         if (filtros.busqueda) {
             const busqueda = filtros.busqueda.toLowerCase()
-            filtered = filtered.filter(detalle => 
-                detalle.stand?.descripcion?.toLowerCase().includes(busqueda) ||
-                detalle.stand?.client?.nombre?.toLowerCase().includes(busqueda) ||
-                detalle.concepto?.descripcion?.toLowerCase().includes(busqueda) ||
-                detalle.inquilino_activo?.nombre?.toLowerCase().includes(busqueda) ||
-                format(new Date(detalle.fechadeudaStand), 'dd/MM/yyyy', { locale: es }).includes(busqueda)
-            )
+            filtered = filtered.filter(detalle => {
+                const standDesc = detalle.stand?.descripcion?.toLowerCase() || ''
+                const clienteNombre = detalle.stand?.client?.nombre?.toLowerCase() || ''
+                const conceptoDesc = detalle.concepto?.descripcion?.toLowerCase() || ''
+                const inquilinoNombre = detalle.inquilino_activo?.nombre?.toLowerCase() || ''
+                const fechaStr = format(new Date(detalle.fechadeudaStand), 'dd/MM/yyyy', { locale: es })
+                
+                return standDesc.includes(busqueda) ||
+                       clienteNombre.includes(busqueda) ||
+                       conceptoDesc.includes(busqueda) ||
+                       inquilinoNombre.includes(busqueda) ||
+                       fechaStr.includes(busqueda)
+            })
         }
 
         return filtered
     }, [detalles, filtros])
+
+    // Paginar datos
+    const datosPaginados = useMemo(() => {
+        if (rowsPerPage === 'all') {
+            return datosFiltrados
+        }
+        const startIndex = (page - 1) * rowsPerPage
+        const endIndex = startIndex + rowsPerPage
+        return datosFiltrados.slice(startIndex, endIndex)
+    }, [datosFiltrados, page, rowsPerPage])
+
+    // Resetear página cuando cambien los filtros
+    useEffect(() => {
+        setPage(1)
+    }, [filtros])
+
+    // Debounce para búsqueda general
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setFiltros(prev => ({ ...prev, busqueda: busquedaTemporal }))
+        }, 500) // 500ms de delay
+
+        return () => clearTimeout(timer)
+    }, [busquedaTemporal])
 
     // Limpiar filtros
     const limpiarFiltros = () => {
@@ -194,6 +243,7 @@ export default function ReporteRegistroDeudasPage() {
             estado: '',
             busqueda: ''
         })
+        setBusquedaTemporal('')
     }
 
     // Verificar si hay filtros activos
@@ -357,8 +407,8 @@ export default function ReporteRegistroDeudasPage() {
                         <Input
                             label="Búsqueda general"
                             placeholder="Buscar por stand, cliente, concepto..."
-                            value={filtros.busqueda}
-                            onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
+                            value={busquedaTemporal}
+                            onChange={(e) => setBusquedaTemporal(e.target.value)}
                             startContent={<FaSearch />}
                             className="col-span-2"
                         />
@@ -378,9 +428,30 @@ export default function ReporteRegistroDeudasPage() {
             {/* Tabla de resultados */}
             <Card>
                 <CardHeader>
-                    <h3 className="text-lg font-semibold">
-                        Registro de Deudas ({datosFiltrados.length} resultados)
-                    </h3>
+                    <div className="flex justify-between items-center w-full">
+                        <h3 className="text-lg font-semibold">
+                            Registro de Deudas ({datosFiltrados.length} resultados)
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">Mostrar:</span>
+                            <Select
+                                selectedKeys={[rowsPerPage.toString()]}
+                                className="w-24"
+                                size="sm"
+                                onChange={(e) => {
+                                    const value = e.target.value
+                                    setRowsPerPage(value === 'all' ? 'all' : parseInt(value))
+                                    setPage(1)
+                                }}
+                            >
+                                {rowsPerPageOptions.map((option) => (
+                                    <SelectItem key={option.key} value={option.key}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardBody>
                     <Table aria-label="Registro de deudas">
@@ -398,7 +469,7 @@ export default function ReporteRegistroDeudasPage() {
                             <TableColumn>ESTADO</TableColumn>
                         </TableHeader>
                         <TableBody>
-                            {datosFiltrados.map((detalle, index) => {
+                            {datosPaginados.map((detalle, index) => {
                                 const total = parseFloat(detalle.monto) + parseFloat(detalle.mora || 0)
                                 const pagado = parseFloat(detalle.totalPagado || 0)
                                 const saldo = total - pagado
@@ -462,6 +533,24 @@ export default function ReporteRegistroDeudasPage() {
                             })}
                         </TableBody>
                     </Table>
+                    
+                    {/* Paginación */}
+                    {rowsPerPage !== 'all' && datosFiltrados.length > rowsPerPage && (
+                        <div className="flex justify-between items-center mt-4">
+                            <div className="text-sm text-gray-500">
+                                Mostrando {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, datosFiltrados.length)} de {datosFiltrados.length} registros
+                            </div>
+                            <Pagination
+                                isCompact
+                                showControls
+                                showShadow
+                                color="primary"
+                                page={page}
+                                total={Math.ceil(datosFiltrados.length / rowsPerPage)}
+                                onChange={setPage}
+                            />
+                        </div>
+                    )}
                 </CardBody>
             </Card>
 
